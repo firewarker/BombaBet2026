@@ -1,0 +1,1043 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🎯 ULTRA BET V6 | Cloud Sync</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+    
+    <!-- FIREBASE SDK -->
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js"></script>
+    
+    <style>
+        * { font-family: 'Inter', sans-serif; }
+        body { background: #0a0a0f; color: #e4e4e7; }
+        .glass { background: rgba(255,255,255,0.03); backdrop-filter: blur(10px); border: 1px solid rgba(255,255,255,0.08); }
+        .glow { box-shadow: 0 0 40px rgba(0,212,170,0.2); }
+        .glow-orange { box-shadow: 0 0 40px rgba(249,115,22,0.2); }
+        .glow-purple { box-shadow: 0 0 40px rgba(168,85,247,0.2); }
+        .gradient-text { background: linear-gradient(135deg, #00d4aa, #0ea5e9); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+        .gradient-orange { background: linear-gradient(135deg, #f97316, #eab308); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+        .gradient-purple { background: linear-gradient(135deg, #a855f7, #ec4899); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+        .loader { animation: spin 1s linear infinite; }
+        @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+        .hot-badge { animation: hotPulse 1.5s infinite; }
+        @keyframes hotPulse { 0%, 100% { box-shadow: 0 0 5px #f59e0b; } 50% { box-shadow: 0 0 25px #f59e0b; } }
+        .slide-up { animation: slideUp 0.3s ease-out; }
+        @keyframes slideUp { from { transform: translateY(15px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+        .tab-football { background: linear-gradient(135deg, #10b981, #0ea5e9); }
+        .tab-nba { background: linear-gradient(135deg, #f97316, #eab308); }
+        .tab-tennis { background: linear-gradient(135deg, #a855f7, #ec4899); }
+        input, select { background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); color: white; }
+        ::-webkit-scrollbar { width: 4px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #00d4aa; border-radius: 2px; }
+        .cloud-badge { background: linear-gradient(135deg, #3b82f6, #8b5cf6); }
+    </style>
+</head>
+<body class="min-h-screen">
+    <div id="root"></div>
+
+    <script>
+        // ============================================================
+        // 🎯 ULTRA BET V6 - FIREBASE CLOUD SYNC
+        // ============================================================
+        //
+        // FEATURES:
+        // ☁️ Sincronizzazione cloud tra dispositivi
+        // 🔐 Login con Google
+        // 📊 Storico unificato
+        // ⚽🏀🎾 Multi-sport
+        //
+        // ============================================================
+
+        // ============================================================
+        // 🔥 FIREBASE CONFIGURATION
+        // ============================================================
+        // 
+        // ⚠️ INSERISCI QUI LA TUA CONFIGURAZIONE FIREBASE
+        // Segui le istruzioni nel file SETUP_FIREBASE.txt
+        //
+        const firebaseConfig = {
+            apiKey: "YOUR_API_KEY",
+            authDomain: "YOUR_PROJECT.firebaseapp.com",
+            databaseURL: "https://YOUR_PROJECT-default-rtdb.europe-west1.firebasedatabase.app",
+            projectId: "YOUR_PROJECT",
+            storageBucket: "YOUR_PROJECT.appspot.com",
+            messagingSenderId: "YOUR_SENDER_ID",
+            appId: "YOUR_APP_ID"
+        };
+
+        // Check if Firebase is configured
+        const isFirebaseConfigured = firebaseConfig.apiKey !== "YOUR_API_KEY";
+        
+        let firebaseApp = null;
+        let auth = null;
+        let database = null;
+        let currentUser = null;
+
+        if (isFirebaseConfigured) {
+            try {
+                firebaseApp = firebase.initializeApp(firebaseConfig);
+                auth = firebase.auth();
+                database = firebase.database();
+            } catch (e) {
+                console.error('Firebase init error:', e);
+            }
+        }
+
+        // ============================================================
+        // PROXY & APIs
+        // ============================================================
+        
+        const PROXY = (url) => `https://corsproxy.io/?${encodeURIComponent(url)}`;
+        const LOCAL_DB_KEY = 'ultraBetV6History';
+
+        // ============================================================
+        // ⚽ FOOTBALL DATA
+        // ============================================================
+        
+        const FOOTBALL_LEAGUES = {
+            SA: { name: "Serie A", flag: "🇮🇹", avgCorners: 10.3, avgCards: 4.2 },
+            PL: { name: "Premier League", flag: "🏴󠁧󠁢󠁥󠁮󠁧󠁿", avgCorners: 10.8, avgCards: 3.6 },
+            PD: { name: "La Liga", flag: "🇪🇸", avgCorners: 9.9, avgCards: 4.8 },
+            BL1: { name: "Bundesliga", flag: "🇩🇪", avgCorners: 10.6, avgCards: 3.5 },
+            CL: { name: "Champions League", flag: "🏆", avgCorners: 10.8, avgCards: 3.2 }
+        };
+
+        const TEAM_STATS = {
+            'Juventus': { corners: 5.8, cornersAg: 4.2, cards: 2.1, cardsAg: 1.8 },
+            'Inter': { corners: 6.2, cornersAg: 3.8, cards: 1.9, cardsAg: 2.0 },
+            'Milan': { corners: 5.5, cornersAg: 4.5, cards: 2.3, cardsAg: 1.9 },
+            'Napoli': { corners: 5.9, cornersAg: 4.0, cards: 2.0, cardsAg: 2.1 },
+            'Roma': { corners: 5.3, cornersAg: 4.8, cards: 2.4, cardsAg: 2.0 },
+            'Lazio': { corners: 5.4, cornersAg: 4.6, cards: 2.2, cardsAg: 2.2 },
+            'Atalanta': { corners: 6.0, cornersAg: 4.1, cards: 2.1, cardsAg: 1.8 },
+            'Fiorentina': { corners: 5.2, cornersAg: 4.9, cards: 2.3, cardsAg: 2.1 },
+            'Bologna': { corners: 5.1, cornersAg: 5.0, cards: 2.0, cardsAg: 2.3 },
+            'Torino': { corners: 4.8, cornersAg: 5.2, cards: 2.4, cardsAg: 2.0 },
+            'Manchester City': { corners: 7.2, cornersAg: 3.1, cards: 1.5, cardsAg: 1.8 },
+            'Arsenal': { corners: 6.5, cornersAg: 3.8, cards: 1.7, cardsAg: 1.9 },
+            'Liverpool': { corners: 6.8, cornersAg: 3.5, cards: 1.6, cardsAg: 2.0 },
+            'Chelsea': { corners: 5.8, cornersAg: 4.2, cards: 1.9, cardsAg: 1.8 },
+            'Manchester United': { corners: 5.5, cornersAg: 4.8, cards: 2.0, cardsAg: 1.7 },
+            'Tottenham': { corners: 5.9, cornersAg: 4.5, cards: 1.8, cardsAg: 2.1 },
+            'Newcastle': { corners: 5.6, cornersAg: 4.6, cards: 1.9, cardsAg: 1.9 },
+            'Real Madrid': { corners: 6.8, cornersAg: 3.2, cards: 2.0, cardsAg: 2.4 },
+            'Barcelona': { corners: 7.0, cornersAg: 3.0, cards: 1.8, cardsAg: 2.5 },
+            'Atletico Madrid': { corners: 5.2, cornersAg: 4.0, cards: 2.8, cardsAg: 2.2 },
+            'Bayern Munich': { corners: 7.5, cornersAg: 2.8, cards: 1.4, cardsAg: 1.9 },
+            'Borussia Dortmund': { corners: 6.2, cornersAg: 4.0, cards: 1.7, cardsAg: 1.7 },
+            'PSG': { corners: 7.8, cornersAg: 2.5, cards: 1.6, cardsAg: 2.2 }
+        };
+
+        // ============================================================
+        // 🏀 NBA DATA
+        // ============================================================
+
+        const NBA_TEAMS = {
+            'Lakers': { avgPts: 115.2, avgAllow: 113.8, pace: 100.5, logo: '💜' },
+            'Celtics': { avgPts: 120.5, avgAllow: 108.2, pace: 99.8, logo: '☘️' },
+            'Warriors': { avgPts: 112.8, avgAllow: 110.5, pace: 101.2, logo: '💛' },
+            'Nuggets': { avgPts: 116.5, avgAllow: 109.8, pace: 98.5, logo: '⛏️' },
+            'Bucks': { avgPts: 118.2, avgAllow: 112.5, pace: 99.2, logo: '🦌' },
+            'Heat': { avgPts: 110.2, avgAllow: 108.5, pace: 96.8, logo: '🔥' },
+            'Mavericks': { avgPts: 117.8, avgAllow: 114.2, pace: 100.8, logo: '🐴' },
+            'Suns': { avgPts: 113.5, avgAllow: 112.8, pace: 99.5, logo: '☀️' },
+            'Knicks': { avgPts: 112.5, avgAllow: 110.2, pace: 97.5, logo: '🗽' },
+            'Clippers': { avgPts: 111.8, avgAllow: 109.5, pace: 98.2, logo: '⛵' }
+        };
+
+        const NBA_PLAYERS = {
+            'LeBron James': { team: 'Lakers', ppg: 25.8, rpg: 7.5, apg: 8.2, mpg: 35.2 },
+            'Anthony Davis': { team: 'Lakers', ppg: 27.2, rpg: 12.1, apg: 3.5, mpg: 36.5 },
+            'Austin Reaves': { team: 'Lakers', ppg: 18.5, rpg: 4.2, apg: 5.8, mpg: 33.1 },
+            'Jayson Tatum': { team: 'Celtics', ppg: 28.5, rpg: 8.8, apg: 5.2, mpg: 36.8 },
+            'Jaylen Brown': { team: 'Celtics', ppg: 24.2, rpg: 5.8, apg: 3.8, mpg: 34.5 },
+            'Stephen Curry': { team: 'Warriors', ppg: 26.8, rpg: 4.5, apg: 6.2, mpg: 32.8 },
+            'Nikola Jokic': { team: 'Nuggets', ppg: 29.5, rpg: 13.2, apg: 10.8, mpg: 37.2 },
+            'Jamal Murray': { team: 'Nuggets', ppg: 21.5, rpg: 4.2, apg: 6.5, mpg: 33.5 },
+            'Giannis Antetokounmpo': { team: 'Bucks', ppg: 31.2, rpg: 11.8, apg: 6.5, mpg: 35.8 },
+            'Damian Lillard': { team: 'Bucks', ppg: 25.5, rpg: 4.5, apg: 7.2, mpg: 35.2 },
+            'Jimmy Butler': { team: 'Heat', ppg: 22.5, rpg: 5.8, apg: 5.2, mpg: 34.2 },
+            'Bam Adebayo': { team: 'Heat', ppg: 18.8, rpg: 10.5, apg: 4.8, mpg: 34.8 },
+            'Luka Doncic': { team: 'Mavericks', ppg: 33.5, rpg: 9.2, apg: 9.8, mpg: 37.5 },
+            'Kyrie Irving': { team: 'Mavericks', ppg: 25.8, rpg: 5.1, apg: 5.5, mpg: 35.5 },
+            'Kevin Durant': { team: 'Suns', ppg: 27.8, rpg: 6.5, apg: 5.2, mpg: 36.2 },
+            'Devin Booker': { team: 'Suns', ppg: 27.2, rpg: 4.8, apg: 6.8, mpg: 35.8 },
+            'Jalen Brunson': { team: 'Knicks', ppg: 28.2, rpg: 3.8, apg: 7.5, mpg: 35.5 },
+            'Karl-Anthony Towns': { team: 'Knicks', ppg: 25.5, rpg: 13.8, apg: 3.2, mpg: 34.2 }
+        };
+
+        const NBA_GAMES = [
+            { id: 1, home: 'Lakers', away: 'Celtics', date: '2026-01-10T02:30:00Z', players: ['LeBron James', 'Anthony Davis', 'Jayson Tatum', 'Jaylen Brown'] },
+            { id: 2, home: 'Warriors', away: 'Nuggets', date: '2026-01-10T03:00:00Z', players: ['Stephen Curry', 'Nikola Jokic', 'Jamal Murray'] },
+            { id: 3, home: 'Bucks', away: 'Heat', date: '2026-01-11T01:00:00Z', players: ['Giannis Antetokounmpo', 'Damian Lillard', 'Jimmy Butler', 'Bam Adebayo'] },
+            { id: 4, home: 'Mavericks', away: 'Suns', date: '2026-01-11T02:30:00Z', players: ['Luka Doncic', 'Kyrie Irving', 'Kevin Durant', 'Devin Booker'] },
+            { id: 5, home: 'Knicks', away: 'Clippers', date: '2026-01-12T00:30:00Z', players: ['Jalen Brunson', 'Karl-Anthony Towns'] },
+            { id: 6, home: 'Celtics', away: 'Bucks', date: '2026-01-12T02:00:00Z', players: ['Jayson Tatum', 'Jaylen Brown', 'Giannis Antetokounmpo', 'Damian Lillard'] },
+            { id: 7, home: 'Nuggets', away: 'Lakers', date: '2026-01-13T03:00:00Z', players: ['Nikola Jokic', 'Jamal Murray', 'LeBron James', 'Anthony Davis'] },
+            { id: 8, home: 'Heat', away: 'Mavericks', date: '2026-01-13T01:30:00Z', players: ['Jimmy Butler', 'Bam Adebayo', 'Luka Doncic', 'Kyrie Irving'] }
+        ];
+
+        // ============================================================
+        // 🎾 TENNIS DATA
+        // ============================================================
+
+        const TENNIS_PLAYERS = {
+            'Jannik Sinner': { rank: 1, winRate: 82, avgGames: 21.2, surface: { hard: 85, clay: 78, grass: 75 } },
+            'Novak Djokovic': { rank: 2, winRate: 78, avgGames: 22.0, surface: { hard: 80, clay: 82, grass: 85 } },
+            'Carlos Alcaraz': { rank: 3, winRate: 76, avgGames: 22.5, surface: { hard: 78, clay: 80, grass: 82 } },
+            'Daniil Medvedev': { rank: 4, winRate: 70, avgGames: 23.0, surface: { hard: 75, clay: 60, grass: 68 } },
+            'Alexander Zverev': { rank: 5, winRate: 68, avgGames: 23.2, surface: { hard: 70, clay: 72, grass: 65 } },
+            'Andrey Rublev': { rank: 6, winRate: 65, avgGames: 22.8, surface: { hard: 68, clay: 65, grass: 60 } },
+            'Holger Rune': { rank: 7, winRate: 62, avgGames: 23.5, surface: { hard: 64, clay: 65, grass: 58 } },
+            'Taylor Fritz': { rank: 8, winRate: 64, avgGames: 22.5, surface: { hard: 68, clay: 55, grass: 65 } },
+            'Iga Swiatek': { rank: 1, winRate: 85, avgGames: 18.5, surface: { hard: 82, clay: 92, grass: 70 }, tour: 'WTA' },
+            'Aryna Sabalenka': { rank: 2, winRate: 75, avgGames: 20.0, surface: { hard: 80, clay: 68, grass: 72 }, tour: 'WTA' },
+            'Coco Gauff': { rank: 3, winRate: 70, avgGames: 21.0, surface: { hard: 72, clay: 68, grass: 65 }, tour: 'WTA' },
+            'Elena Rybakina': { rank: 4, winRate: 68, avgGames: 20.5, surface: { hard: 70, clay: 60, grass: 78 }, tour: 'WTA' }
+        };
+
+        const TENNIS_MATCHES = [
+            { id: 1, player1: 'Jannik Sinner', player2: 'Carlos Alcaraz', tournament: 'Australian Open', round: 'Semifinale', surface: 'hard', date: '2026-01-10T09:00:00Z' },
+            { id: 2, player1: 'Novak Djokovic', player2: 'Daniil Medvedev', tournament: 'Australian Open', round: 'Semifinale', surface: 'hard', date: '2026-01-10T04:00:00Z' },
+            { id: 3, player1: 'Alexander Zverev', player2: 'Taylor Fritz', tournament: 'Australian Open', round: 'Quarti', surface: 'hard', date: '2026-01-11T06:00:00Z' },
+            { id: 4, player1: 'Andrey Rublev', player2: 'Holger Rune', tournament: 'Australian Open', round: 'Quarti', surface: 'hard', date: '2026-01-11T08:30:00Z' },
+            { id: 5, player1: 'Iga Swiatek', player2: 'Aryna Sabalenka', tournament: 'Australian Open', round: 'Finale', surface: 'hard', date: '2026-01-12T09:00:00Z' },
+            { id: 6, player1: 'Coco Gauff', player2: 'Elena Rybakina', tournament: 'Australian Open', round: 'Semifinale', surface: 'hard', date: '2026-01-12T04:00:00Z' }
+        ];
+
+        // ============================================================
+        // STATE
+        // ============================================================
+
+        let state = {
+            apiKey: localStorage.getItem('footballDataApiKey') || '',
+            showSetup: !localStorage.getItem('footballDataApiKey'),
+            activeSport: 'football',
+            selectedLeague: 'SA',
+            footballMatches: [],
+            loading: false,
+            error: null,
+            activeTab: 'hot',
+            selectedMatch: null,
+            analysisData: null,
+            history: [],
+            historyFilter: 'all',
+            // Firebase state
+            user: null,
+            authLoading: true,
+            syncStatus: 'offline' // 'offline', 'syncing', 'synced'
+        };
+
+        // ============================================================
+        // 🔥 FIREBASE FUNCTIONS
+        // ============================================================
+
+        async function signInWithGoogle() {
+            if (!auth) {
+                alert('⚠️ Firebase non configurato! Segui le istruzioni nel file SETUP_FIREBASE.txt');
+                return;
+            }
+            
+            try {
+                const provider = new firebase.auth.GoogleAuthProvider();
+                await auth.signInWithPopup(provider);
+            } catch (error) {
+                console.error('Login error:', error);
+                alert('Errore login: ' + error.message);
+            }
+        }
+
+        async function signOut() {
+            if (!auth) return;
+            try {
+                await auth.signOut();
+                state.user = null;
+                state.history = [];
+                render();
+            } catch (error) {
+                console.error('Logout error:', error);
+            }
+        }
+
+        function setupAuthListener() {
+            if (!auth) {
+                state.authLoading = false;
+                // Load local history if no Firebase
+                state.history = JSON.parse(localStorage.getItem(LOCAL_DB_KEY) || '[]');
+                render();
+                return;
+            }
+            
+            auth.onAuthStateChanged((user) => {
+                state.user = user;
+                state.authLoading = false;
+                
+                if (user) {
+                    // User logged in - load cloud data
+                    loadCloudHistory();
+                    setupRealtimeSync();
+                } else {
+                    // User logged out - load local data
+                    state.history = JSON.parse(localStorage.getItem(LOCAL_DB_KEY) || '[]');
+                    state.syncStatus = 'offline';
+                }
+                render();
+            });
+        }
+
+        async function loadCloudHistory() {
+            if (!database || !state.user) return;
+            
+            state.syncStatus = 'syncing';
+            render();
+            
+            try {
+                const snapshot = await database.ref(`users/${state.user.uid}/history`).once('value');
+                const data = snapshot.val();
+                state.history = data ? Object.values(data) : [];
+                state.syncStatus = 'synced';
+            } catch (error) {
+                console.error('Load error:', error);
+                state.syncStatus = 'offline';
+            }
+            render();
+        }
+
+        function setupRealtimeSync() {
+            if (!database || !state.user) return;
+            
+            database.ref(`users/${state.user.uid}/history`).on('value', (snapshot) => {
+                const data = snapshot.val();
+                state.history = data ? Object.values(data) : [];
+                state.syncStatus = 'synced';
+                render();
+            });
+        }
+
+        async function saveToCloud(entry) {
+            if (!database || !state.user) {
+                // Save locally if no Firebase
+                state.history.unshift(entry);
+                localStorage.setItem(LOCAL_DB_KEY, JSON.stringify(state.history));
+                return;
+            }
+            
+            state.syncStatus = 'syncing';
+            render();
+            
+            try {
+                await database.ref(`users/${state.user.uid}/history/${entry.id}`).set(entry);
+                state.syncStatus = 'synced';
+            } catch (error) {
+                console.error('Save error:', error);
+                state.syncStatus = 'offline';
+                // Fallback to local
+                state.history.unshift(entry);
+                localStorage.setItem(LOCAL_DB_KEY, JSON.stringify(state.history));
+            }
+            render();
+        }
+
+        async function updateCloudResult(id, result) {
+            if (!database || !state.user) {
+                // Update locally
+                const entry = state.history.find(e => e.id === id);
+                if (entry) {
+                    entry.result = result;
+                    localStorage.setItem(LOCAL_DB_KEY, JSON.stringify(state.history));
+                }
+                return;
+            }
+            
+            try {
+                await database.ref(`users/${state.user.uid}/history/${id}/result`).set(result);
+            } catch (error) {
+                console.error('Update error:', error);
+            }
+        }
+
+        async function deleteCloudHistory() {
+            if (!database || !state.user) {
+                state.history = [];
+                localStorage.setItem(LOCAL_DB_KEY, '[]');
+                return;
+            }
+            
+            try {
+                await database.ref(`users/${state.user.uid}/history`).remove();
+                state.history = [];
+            } catch (error) {
+                console.error('Delete error:', error);
+            }
+        }
+
+        // ============================================================
+        // ⚽ FOOTBALL ALGORITHMS
+        // ============================================================
+
+        function getTeamStats(name) {
+            for (const [team, stats] of Object.entries(TEAM_STATS)) {
+                if (name.toLowerCase().includes(team.toLowerCase()) || team.toLowerCase().includes(name.toLowerCase())) {
+                    return stats;
+                }
+            }
+            return { corners: 5.0, cornersAg: 5.0, cards: 2.0, cardsAg: 2.0 };
+        }
+
+        function analyzeCorners(home, away) {
+            const h = getTeamStats(home);
+            const a = getTeamStats(away);
+            
+            let homeC = (h.corners * 1.08 + a.cornersAg * 0.92) / 2;
+            let awayC = (a.corners * 0.92 + h.cornersAg * 1.08) / 2;
+            const total = homeC + awayC;
+            
+            const lines = [8.5, 9.5, 10.5, 11.5];
+            const preds = lines.map(line => {
+                const diff = total - line;
+                const prob = Math.max(18, Math.min(82, 50 + diff * 14));
+                return { line, pick: diff > 0 ? 'OVER' : 'UNDER', prob: diff > 0 ? prob : 100 - prob, conf: Math.min(85, 50 + Math.abs(diff) * 9) };
+            });
+            
+            return { homeC: homeC.toFixed(1), awayC: awayC.toFixed(1), total: total.toFixed(1), preds, best: preds.reduce((a,b) => a.conf > b.conf ? a : b) };
+        }
+
+        function analyzeCards(home, away) {
+            const h = getTeamStats(home);
+            const a = getTeamStats(away);
+            
+            let homeCards = (h.cards * 0.88 + a.cardsAg * 1.12) / 2;
+            let awayCards = (a.cards * 1.15 + h.cardsAg * 0.85) / 2;
+            const total = homeCards + awayCards;
+            
+            const lines = [3.5, 4.5, 5.5];
+            const preds = lines.map(line => {
+                const diff = total - line;
+                const prob = Math.max(20, Math.min(80, 50 + diff * 18));
+                return { line, pick: diff > 0 ? 'OVER' : 'UNDER', prob: diff > 0 ? prob : 100 - prob, conf: Math.min(82, 48 + Math.abs(diff) * 11) };
+            });
+            
+            return { homeCards: homeCards.toFixed(1), awayCards: awayCards.toFixed(1), total: total.toFixed(1), preds, best: preds.reduce((a,b) => a.conf > b.conf ? a : b) };
+        }
+
+        // ============================================================
+        // 🏀 NBA ALGORITHMS
+        // ============================================================
+
+        function analyzeNBAGame(game) {
+            const home = NBA_TEAMS[game.home];
+            const away = NBA_TEAMS[game.away];
+            
+            const homeExp = (home.avgPts + away.avgAllow) / 2 * 1.02;
+            const awayExp = (away.avgPts + home.avgAllow) / 2 * 0.98;
+            const totalExp = homeExp + awayExp;
+            
+            const lines = [215.5, 220.5, 225.5, 230.5];
+            const totalPreds = lines.map(line => {
+                const diff = totalExp - line;
+                const prob = Math.max(22, Math.min(78, 50 + diff * 3));
+                return { line, pick: diff > 0 ? 'OVER' : 'UNDER', prob: diff > 0 ? prob : 100 - prob, conf: Math.min(78, 45 + Math.abs(diff) * 2.5) };
+            });
+            
+            const spread = homeExp - awayExp;
+            const spreadPred = { line: Math.abs(spread).toFixed(1), pick: spread > 0 ? game.home : game.away, conf: Math.min(75, 48 + Math.abs(spread) * 2) };
+            
+            return { homeExp: homeExp.toFixed(1), awayExp: awayExp.toFixed(1), totalExp: totalExp.toFixed(1), totalPreds, spreadPred, best: totalPreds.reduce((a,b) => a.conf > b.conf ? a : b) };
+        }
+
+        function analyzePlayerProps(playerName, oppTeam) {
+            const player = NBA_PLAYERS[playerName];
+            if (!player) return null;
+            
+            const opp = NBA_TEAMS[oppTeam];
+            const defFactor = opp ? (opp.avgAllow / 112) : 1;
+            
+            const expPts = player.ppg * defFactor * (0.95 + Math.random() * 0.1);
+            const ptsLines = [player.ppg - 3.5, player.ppg - 0.5, player.ppg + 2.5];
+            const ptsPreds = ptsLines.map(line => {
+                const diff = expPts - line;
+                const prob = Math.max(25, Math.min(75, 50 + diff * 8));
+                return { stat: 'PTS', line: line.toFixed(1), pick: diff > 0 ? 'OVER' : 'UNDER', prob: diff > 0 ? prob : 100 - prob, conf: Math.min(76, 48 + Math.abs(diff) * 5) };
+            });
+            
+            const expReb = player.rpg * (0.92 + Math.random() * 0.16);
+            const rebLine = player.rpg - 0.5;
+            const rebDiff = expReb - rebLine;
+            const rebPred = { stat: 'REB', line: rebLine.toFixed(1), pick: rebDiff > 0 ? 'OVER' : 'UNDER', prob: Math.max(30, Math.min(70, 50 + rebDiff * 10)), conf: Math.min(72, 45 + Math.abs(rebDiff) * 6) };
+            
+            const expAst = player.apg * (0.90 + Math.random() * 0.2);
+            const astLine = player.apg - 0.5;
+            const astDiff = expAst - astLine;
+            const astPred = { stat: 'AST', line: astLine.toFixed(1), pick: astDiff > 0 ? 'OVER' : 'UNDER', prob: Math.max(30, Math.min(70, 50 + astDiff * 10)), conf: Math.min(70, 44 + Math.abs(astDiff) * 6) };
+            
+            const expPRA = expPts + expReb + expAst;
+            const praLine = player.ppg + player.rpg + player.apg - 1.5;
+            const praDiff = expPRA - praLine;
+            const praPred = { stat: 'PRA', line: praLine.toFixed(1), pick: praDiff > 0 ? 'OVER' : 'UNDER', prob: Math.max(28, Math.min(72, 50 + praDiff * 4)), conf: Math.min(74, 46 + Math.abs(praDiff) * 3) };
+            
+            const allProps = [...ptsPreds, rebPred, astPred, praPred];
+            
+            return { player: playerName, team: player.team, avgPts: player.ppg, avgReb: player.rpg, avgAst: player.apg, props: allProps.sort((a,b) => b.conf - a.conf), bestProp: allProps.reduce((a,b) => a.conf > b.conf ? a : b) };
+        }
+
+        // ============================================================
+        // 🎾 TENNIS ALGORITHMS
+        // ============================================================
+
+        function analyzeTennisMatch(match) {
+            const p1 = TENNIS_PLAYERS[match.player1];
+            const p2 = TENNIS_PLAYERS[match.player2];
+            
+            if (!p1 || !p2) return null;
+            
+            const surface = match.surface || 'hard';
+            const p1Surface = p1.surface[surface] || 70;
+            const p2Surface = p2.surface[surface] || 70;
+            
+            const rankDiff = p2.rank - p1.rank;
+            const winDiff = p1.winRate - p2.winRate;
+            const surfDiff = p1Surface - p2Surface;
+            
+            let p1WinProb = 50 + rankDiff * 2 + winDiff * 0.3 + surfDiff * 0.2;
+            p1WinProb = Math.max(20, Math.min(80, p1WinProb));
+            
+            const avgGames = (p1.avgGames + p2.avgGames) / 2;
+            const tightMatch = Math.abs(p1WinProb - 50) < 12;
+            const expGames = avgGames + (tightMatch ? 2.5 : -1.5);
+            
+            const gameLines = [20.5, 21.5, 22.5, 23.5];
+            const gamePreds = gameLines.map(line => {
+                const diff = expGames - line;
+                const prob = Math.max(25, Math.min(75, 50 + diff * 12));
+                return { line, pick: diff > 0 ? 'OVER' : 'UNDER', prob: diff > 0 ? prob : 100 - prob, conf: Math.min(78, 46 + Math.abs(diff) * 8) };
+            });
+            
+            return { p1WinProb: p1WinProb.toFixed(0), p2WinProb: (100 - p1WinProb).toFixed(0), expGames: expGames.toFixed(1), gamePreds, winner: { player: p1WinProb > 50 ? match.player1 : match.player2, conf: Math.min(80, 48 + Math.abs(p1WinProb - 50) * 0.7) }, best: gamePreds.reduce((a,b) => a.conf > b.conf ? a : b) };
+        }
+
+        // ============================================================
+        // HOT PICKS
+        // ============================================================
+
+        function getFootballHotPicks() {
+            const picks = [];
+            state.footballMatches.forEach(match => {
+                const home = match.homeTeam.shortName || match.homeTeam.name;
+                const away = match.awayTeam.shortName || match.awayTeam.name;
+                const corners = analyzeCorners(home, away);
+                const cards = analyzeCards(home, away);
+                if (corners.best.conf >= 68) picks.push({ type: 'corner', match, analysis: corners, pred: corners.best });
+                if (cards.best.conf >= 65) picks.push({ type: 'cards', match, analysis: cards, pred: cards.best });
+            });
+            return picks.sort((a,b) => b.pred.conf - a.pred.conf).slice(0, 8);
+        }
+
+        function getNBAHotPicks() {
+            const picks = [];
+            NBA_GAMES.forEach(game => {
+                const analysis = analyzeNBAGame(game);
+                if (analysis.best.conf >= 62) picks.push({ type: 'total', game, analysis, pred: analysis.best });
+                if (analysis.spreadPred.conf >= 60) picks.push({ type: 'spread', game, analysis, pred: analysis.spreadPred });
+            });
+            NBA_GAMES.forEach(game => {
+                game.players.forEach(playerName => {
+                    const oppTeam = NBA_PLAYERS[playerName]?.team === game.home ? game.away : game.home;
+                    const props = analyzePlayerProps(playerName, oppTeam);
+                    if (props && props.bestProp.conf >= 65) picks.push({ type: 'player', game, player: playerName, analysis: props, pred: props.bestProp });
+                });
+            });
+            return picks.sort((a,b) => b.pred.conf - a.pred.conf).slice(0, 10);
+        }
+
+        function getTennisHotPicks() {
+            const picks = [];
+            TENNIS_MATCHES.forEach(match => {
+                const analysis = analyzeTennisMatch(match);
+                if (!analysis) return;
+                if (analysis.winner.conf >= 62) picks.push({ type: 'winner', match, analysis, pred: { pick: analysis.winner.player, conf: analysis.winner.conf } });
+                if (analysis.best.conf >= 60) picks.push({ type: 'games', match, analysis, pred: analysis.best });
+            });
+            return picks.sort((a,b) => b.pred.conf - a.pred.conf).slice(0, 8);
+        }
+
+        // ============================================================
+        // DATA LOADING
+        // ============================================================
+
+        async function loadFootballMatches() {
+            state.loading = true;
+            state.error = null;
+            render();
+            
+            try {
+                const url = PROXY(`https://api.football-data.org/v4/competitions/${state.selectedLeague}/matches?status=SCHEDULED,TIMED`);
+                const res = await fetch(url, { headers: { 'X-Auth-Token': state.apiKey } });
+                if (!res.ok) throw new Error('API Error');
+                const data = await res.json();
+                state.footballMatches = (data.matches || []).slice(0, 15);
+            } catch (err) {
+                state.error = err.message;
+            } finally {
+                state.loading = false;
+                render();
+            }
+        }
+
+        // ============================================================
+        // SAVE PICKS
+        // ============================================================
+
+        function getPickDescription(pick, sport) {
+            if (sport === 'football') {
+                const home = pick.match.homeTeam?.shortName || pick.match.homeTeam?.name || '';
+                const away = pick.match.awayTeam?.shortName || pick.match.awayTeam?.name || '';
+                return `${home} vs ${away} - ${pick.type === 'corner' ? '🚩' : '🟨'} ${pick.pred.pick} ${pick.pred.line}`;
+            }
+            if (sport === 'nba') {
+                if (pick.type === 'player') return `${pick.player} - ${pick.pred.stat} ${pick.pred.pick} ${pick.pred.line}`;
+                return `${pick.game.home} vs ${pick.game.away} - ${pick.type === 'total' ? `Total ${pick.pred.pick} ${pick.pred.line}` : `${pick.pred.pick} -${pick.pred.line}`}`;
+            }
+            if (sport === 'tennis') {
+                if (pick.type === 'winner') return `${pick.match.player1} vs ${pick.match.player2} - Vince ${pick.pred.pick}`;
+                return `${pick.match.player1} vs ${pick.match.player2} - Games ${pick.pred.pick} ${pick.pred.line}`;
+            }
+            return '';
+        }
+
+        async function savePick(pick, sport) {
+            const entry = {
+                id: Date.now(),
+                sport,
+                type: pick.type,
+                description: getPickDescription(pick, sport),
+                conf: pick.pred.conf,
+                result: null,
+                date: new Date().toISOString()
+            };
+            
+            await saveToCloud(entry);
+            alert('✅ Salvato nel cloud!');
+        }
+
+        async function updateResult(id, won) {
+            await updateCloudResult(id, won ? 'won' : 'lost');
+            // Local state update for immediate feedback
+            const entry = state.history.find(e => e.id === id);
+            if (entry) entry.result = won ? 'won' : 'lost';
+            render();
+        }
+
+        function getStats() {
+            const resolved = state.history.filter(e => e.result !== null);
+            const won = resolved.filter(e => e.result === 'won').length;
+            return { total: state.history.length, won, lost: resolved.length - won, hitRate: resolved.length > 0 ? (won / resolved.length * 100).toFixed(1) : 0 };
+        }
+
+        // ============================================================
+        // RENDER HELPERS
+        // ============================================================
+
+        function formatDate(d) {
+            const date = new Date(d);
+            return { date: date.toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit' }), time: date.toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' }) };
+        }
+
+        function confBadge(v, sport = 'football') {
+            const colors = {
+                football: v >= 70 ? 'from-emerald-400 to-cyan-500' : v >= 58 ? 'from-amber-400 to-orange-500' : 'from-red-400 to-pink-500',
+                nba: v >= 68 ? 'from-orange-400 to-yellow-500' : v >= 55 ? 'from-amber-400 to-orange-500' : 'from-red-400 to-pink-500',
+                tennis: v >= 68 ? 'from-purple-400 to-pink-500' : v >= 55 ? 'from-amber-400 to-orange-500' : 'from-red-400 to-pink-500'
+            };
+            return `<span class="px-2.5 py-1 rounded-full text-xs font-bold bg-gradient-to-r ${colors[sport]} text-white">${Math.round(v)}%</span>`;
+        }
+
+        function syncBadge() {
+            if (!isFirebaseConfigured) return '<span class="text-xs text-gray-500">💾 Locale</span>';
+            if (!state.user) return '<span class="text-xs text-gray-500">🔓 Non loggato</span>';
+            if (state.syncStatus === 'syncing') return '<span class="text-xs text-blue-400">☁️ Sync...</span>';
+            if (state.syncStatus === 'synced') return '<span class="text-xs text-green-400">☁️ Sincronizzato</span>';
+            return '<span class="text-xs text-red-400">⚠️ Offline</span>';
+        }
+
+        // ============================================================
+        // MAIN RENDER
+        // ============================================================
+
+        function render() {
+            const root = document.getElementById('root');
+
+            // AUTH LOADING
+            if (state.authLoading) {
+                root.innerHTML = `
+                    <div class="min-h-screen flex items-center justify-center">
+                        <div class="text-center">
+                            <div class="w-12 h-12 border-4 border-cyan-400 border-t-transparent rounded-full loader mx-auto mb-4"></div>
+                            <p class="text-gray-500">Caricamento...</p>
+                        </div>
+                    </div>
+                `;
+                return;
+            }
+
+            // SETUP
+            if (state.showSetup) {
+                root.innerHTML = `
+                    <div class="min-h-screen flex items-center justify-center p-4">
+                        <div class="glass rounded-3xl p-8 max-w-md w-full slide-up">
+                            <div class="text-center mb-6">
+                                <div class="w-20 h-20 rounded-2xl bg-gradient-to-br from-emerald-400 to-cyan-500 flex items-center justify-center mx-auto mb-4 glow">
+                                    <span class="text-4xl">🎯</span>
+                                </div>
+                                <h1 class="text-3xl font-black gradient-text">ULTRA BET V6</h1>
+                                <p class="text-gray-500 mt-1">☁️ Cloud Sync Edition</p>
+                            </div>
+                            
+                            <!-- Firebase Status -->
+                            <div class="glass rounded-xl p-4 mb-4 text-center">
+                                ${isFirebaseConfigured ? `
+                                    <p class="text-green-400 font-medium">✅ Firebase configurato</p>
+                                    ${state.user ? `
+                                        <p class="text-sm text-gray-400 mt-1">Loggato come ${state.user.displayName || state.user.email}</p>
+                                    ` : `
+                                        <button onclick="signInWithGoogle()" class="mt-3 w-full py-3 rounded-xl font-bold bg-white text-gray-800 flex items-center justify-center gap-2">
+                                            <img src="https://www.google.com/favicon.ico" class="w-5 h-5"/> Accedi con Google
+                                        </button>
+                                    `}
+                                ` : `
+                                    <p class="text-amber-400 font-medium">⚠️ Firebase non configurato</p>
+                                    <p class="text-xs text-gray-500 mt-1">Lo storico sarà salvato solo localmente</p>
+                                `}
+                            </div>
+                            
+                            <div class="grid grid-cols-3 gap-3 mb-6">
+                                <div class="glass rounded-xl p-3 text-center">
+                                    <span class="text-2xl">⚽</span>
+                                    <p class="text-xs text-gray-500 mt-1">Corner</p>
+                                </div>
+                                <div class="glass rounded-xl p-3 text-center">
+                                    <span class="text-2xl">🏀</span>
+                                    <p class="text-xs text-gray-500 mt-1">NBA</p>
+                                </div>
+                                <div class="glass rounded-xl p-3 text-center">
+                                    <span class="text-2xl">🎾</span>
+                                    <p class="text-xs text-gray-500 mt-1">Tennis</p>
+                                </div>
+                            </div>
+                            
+                            <div class="mb-6">
+                                <label class="block text-sm font-medium text-gray-400 mb-2">🔑 API Key (football-data.org)</label>
+                                <input id="apiKeyInput" type="text" placeholder="Inserisci token..." value="${state.apiKey}" class="w-full px-4 py-3 rounded-xl text-center"/>
+                                <a href="https://www.football-data.org/client/register" target="_blank" class="text-xs text-cyan-400 block mt-2 text-center">Registrati gratis →</a>
+                            </div>
+                            
+                            <button onclick="saveKey()" class="w-full py-4 rounded-xl font-bold bg-gradient-to-r from-emerald-400 to-cyan-500 text-gray-900">
+                                🚀 INIZIA
+                            </button>
+                        </div>
+                    </div>
+                `;
+                return;
+            }
+
+            let content = '';
+            const sport = state.activeSport;
+
+            // HOT PICKS TAB
+            if (state.activeTab === 'hot') {
+                if (sport === 'football') {
+                    if (state.loading) {
+                        content = `<div class="glass rounded-2xl p-8 text-center"><div class="w-10 h-10 border-4 border-cyan-400 border-t-transparent rounded-full loader mx-auto"></div></div>`;
+                    } else {
+                        const picks = getFootballHotPicks();
+                        content = `
+                            <div class="flex gap-2 overflow-x-auto pb-3 mb-4">
+                                ${Object.entries(FOOTBALL_LEAGUES).map(([code, l]) => `
+                                    <button onclick="state.selectedLeague='${code}';loadFootballMatches()" class="px-4 py-2 rounded-xl text-xs font-bold whitespace-nowrap ${state.selectedLeague === code ? 'tab-football text-gray-900' : 'glass text-gray-400'}">
+                                        ${l.flag} ${l.name}
+                                    </button>
+                                `).join('')}
+                            </div>
+                            <div class="flex items-center justify-between mb-4">
+                                <h2 class="text-lg font-bold">🔥 <span class="gradient-text">HOT PICKS</span></h2>
+                                <button onclick="loadFootballMatches()" class="glass px-3 py-1.5 rounded-lg text-xs">🔄</button>
+                            </div>
+                            <div class="space-y-3">
+                                ${picks.length === 0 ? '<p class="glass rounded-xl p-8 text-center text-gray-500">Carica partite</p>' : ''}
+                                ${picks.map((pick, i) => {
+                                    const home = pick.match.homeTeam?.shortName || pick.match.homeTeam?.name;
+                                    const away = pick.match.awayTeam?.shortName || pick.match.awayTeam?.name;
+                                    const { date, time } = formatDate(pick.match.utcDate);
+                                    return `
+                                        <div class="glass rounded-xl p-4 slide-up ${pick.pred.conf >= 72 ? 'hot-badge' : ''}" style="animation-delay:${i*40}ms">
+                                            <div class="flex items-center justify-between mb-3">
+                                                <div class="flex items-center gap-3">
+                                                    <span class="text-2xl">${pick.type === 'corner' ? '🚩' : '🟨'}</span>
+                                                    <div>
+                                                        <p class="font-bold text-white text-sm">${home} vs ${away}</p>
+                                                        <p class="text-xs text-gray-500">${date} • ${time}</p>
+                                                    </div>
+                                                </div>
+                                                ${confBadge(pick.pred.conf, 'football')}
+                                            </div>
+                                            <div class="flex items-center justify-between bg-black/30 rounded-lg p-3">
+                                                <div>
+                                                    <p class="text-xs text-gray-500">${pick.type === 'corner' ? 'Corner' : 'Cards'}</p>
+                                                    <p class="text-lg font-black text-white">${pick.pred.pick} ${pick.pred.line}</p>
+                                                </div>
+                                                <div class="text-right">
+                                                    <p class="text-xs text-gray-500">Expected</p>
+                                                    <p class="font-bold text-cyan-400">${pick.analysis.total}</p>
+                                                </div>
+                                                <button onclick='savePick(${JSON.stringify(pick).replace(/'/g, "\\'")},"football")' class="ml-2 bg-gradient-to-r from-emerald-400 to-cyan-500 text-gray-900 px-3 py-2 rounded-lg text-xs font-bold">💾</button>
+                                            </div>
+                                        </div>
+                                    `;
+                                }).join('')}
+                            </div>
+                        `;
+                    }
+                }
+                
+                if (sport === 'nba') {
+                    const picks = getNBAHotPicks();
+                    content = `
+                        <div class="flex items-center justify-between mb-4">
+                            <h2 class="text-lg font-bold">🔥 <span class="gradient-orange">NBA HOT PICKS</span></h2>
+                        </div>
+                        <div class="space-y-3">
+                            ${picks.map((pick, i) => {
+                                const { date, time } = formatDate(pick.game.date);
+                                const isPlayer = pick.type === 'player';
+                                return `
+                                    <div class="glass rounded-xl p-4 slide-up ${pick.pred.conf >= 68 ? 'glow-orange' : ''}" style="animation-delay:${i*40}ms">
+                                        <div class="flex items-center justify-between mb-2">
+                                            <div class="flex items-center gap-2">
+                                                <span class="text-xl">${isPlayer ? '👤' : '🏀'}</span>
+                                                <div>
+                                                    ${isPlayer ? `<p class="font-bold text-white text-sm">${pick.player}</p><p class="text-xs text-gray-500">${pick.game.home} vs ${pick.game.away}</p>` : `<p class="font-bold text-white text-sm">${pick.game.home} vs ${pick.game.away}</p><p class="text-xs text-gray-500">${date} • ${time}</p>`}
+                                                </div>
+                                            </div>
+                                            ${confBadge(pick.pred.conf, 'nba')}
+                                        </div>
+                                        <div class="flex items-center justify-between bg-orange-500/10 rounded-lg p-3">
+                                            <div>
+                                                <p class="text-xs text-gray-500">${isPlayer ? pick.pred.stat : (pick.type === 'total' ? 'Total' : 'Spread')}</p>
+                                                <p class="text-lg font-black text-white">${pick.pred.pick} ${pick.pred.line}</p>
+                                            </div>
+                                            ${isPlayer ? `<div class="text-right"><p class="text-xs text-gray-500">Avg</p><p class="font-bold text-orange-400">${pick.analysis.avgPts}</p></div>` : `<div class="text-right"><p class="text-xs text-gray-500">Exp</p><p class="font-bold text-orange-400">${pick.analysis.totalExp}</p></div>`}
+                                            <button onclick='savePick(${JSON.stringify(pick).replace(/'/g, "\\'")},"nba")' class="ml-2 bg-gradient-to-r from-orange-400 to-yellow-500 text-gray-900 px-3 py-2 rounded-lg text-xs font-bold">💾</button>
+                                        </div>
+                                    </div>
+                                `;
+                            }).join('')}
+                        </div>
+                    `;
+                }
+                
+                if (sport === 'tennis') {
+                    const picks = getTennisHotPicks();
+                    content = `
+                        <div class="flex items-center justify-between mb-4">
+                            <h2 class="text-lg font-bold">🔥 <span class="gradient-purple">TENNIS HOT</span></h2>
+                        </div>
+                        <div class="space-y-3">
+                            ${picks.map((pick, i) => {
+                                const isWinner = pick.type === 'winner';
+                                return `
+                                    <div class="glass rounded-xl p-4 slide-up ${pick.pred.conf >= 68 ? 'glow-purple' : ''}" style="animation-delay:${i*40}ms">
+                                        <div class="flex items-center justify-between mb-2">
+                                            <div class="flex items-center gap-2">
+                                                <span class="text-xl">${isWinner ? '🏆' : '🎾'}</span>
+                                                <div>
+                                                    <p class="font-bold text-white text-sm">${pick.match.player1} vs ${pick.match.player2}</p>
+                                                    <p class="text-xs text-gray-500">${pick.match.tournament} • ${pick.match.round}</p>
+                                                </div>
+                                            </div>
+                                            ${confBadge(pick.pred.conf, 'tennis')}
+                                        </div>
+                                        <div class="flex items-center justify-between bg-purple-500/10 rounded-lg p-3">
+                                            <div>
+                                                <p class="text-xs text-gray-500">${isWinner ? 'Vincente' : 'Games'}</p>
+                                                <p class="text-lg font-black text-white">${isWinner ? pick.pred.pick : `${pick.pred.pick} ${pick.pred.line}`}</p>
+                                            </div>
+                                            <button onclick='savePick(${JSON.stringify(pick).replace(/'/g, "\\'")},"tennis")' class="ml-2 bg-gradient-to-r from-purple-400 to-pink-500 text-white px-3 py-2 rounded-lg text-xs font-bold">💾</button>
+                                        </div>
+                                    </div>
+                                `;
+                            }).join('')}
+                        </div>
+                    `;
+                }
+            }
+
+            // STATS TAB
+            if (state.activeTab === 'stats') {
+                const stats = getStats();
+                const filtered = state.historyFilter === 'all' ? state.history : state.history.filter(e => e.result === state.historyFilter || (state.historyFilter === 'pending' && e.result === null));
+                
+                content = `
+                    <div class="glass rounded-xl p-5 mb-4 glow">
+                        <div class="flex items-center justify-between mb-4">
+                            <h3 class="font-bold">📊 STATISTICHE</h3>
+                            ${syncBadge()}
+                        </div>
+                        <div class="grid grid-cols-4 gap-2 text-center">
+                            <div class="bg-white/5 rounded-lg p-3"><p class="text-2xl font-black text-white">${stats.total}</p><p class="text-xs text-gray-500">Tot</p></div>
+                            <div class="bg-emerald-500/20 rounded-lg p-3"><p class="text-2xl font-black text-emerald-400">${stats.won}</p><p class="text-xs text-gray-500">Vinti</p></div>
+                            <div class="bg-red-500/20 rounded-lg p-3"><p class="text-2xl font-black text-red-400">${stats.lost}</p><p class="text-xs text-gray-500">Persi</p></div>
+                            <div class="bg-cyan-500/20 rounded-lg p-3"><p class="text-2xl font-black text-cyan-400">${stats.hitRate}%</p><p class="text-xs text-gray-500">Hit</p></div>
+                        </div>
+                    </div>
+                    
+                    <div class="flex gap-2 mb-4">
+                        ${['all', 'pending', 'won', 'lost'].map(f => `
+                            <button onclick="state.historyFilter='${f}';render()" class="px-4 py-2 rounded-lg text-xs font-bold ${state.historyFilter === f ? 'bg-gradient-to-r from-emerald-400 to-cyan-500 text-gray-900' : 'glass text-gray-400'}">
+                                ${f === 'all' ? 'Tutti' : f === 'pending' ? '⏳' : f === 'won' ? '✅' : '❌'}
+                            </button>
+                        `).join('')}
+                    </div>
+                    
+                    <div class="space-y-2">
+                        ${filtered.length === 0 ? '<p class="glass rounded-xl p-8 text-center text-gray-500">Nessun pick</p>' : ''}
+                        ${filtered.sort((a,b) => b.id - a.id).map(e => {
+                            const sportIcon = e.sport === 'football' ? '⚽' : e.sport === 'nba' ? '🏀' : '🎾';
+                            const statusCls = e.result === 'won' ? 'border-emerald-500/30 bg-emerald-500/10' : e.result === 'lost' ? 'border-red-500/30 bg-red-500/10' : '';
+                            return `
+                                <div class="glass rounded-lg p-3 border ${statusCls}">
+                                    <div class="flex items-center justify-between">
+                                        <div class="flex items-center gap-2 flex-1 min-w-0">
+                                            <span>${sportIcon}</span>
+                                            <div class="min-w-0">
+                                                <p class="text-sm font-medium text-white truncate">${e.description}</p>
+                                                <p class="text-xs text-gray-500">${e.conf?.toFixed(0) || '?'}%</p>
+                                            </div>
+                                        </div>
+                                        ${e.result === null ? `
+                                            <div class="flex gap-1 ml-2">
+                                                <button onclick="updateResult(${e.id}, true)" class="bg-emerald-500 text-white px-2 py-1 rounded text-xs">✓</button>
+                                                <button onclick="updateResult(${e.id}, false)" class="bg-red-500 text-white px-2 py-1 rounded text-xs">✗</button>
+                                            </div>
+                                        ` : `<span class="text-xl ml-2">${e.result === 'won' ? '✅' : '❌'}</span>`}
+                                    </div>
+                                </div>
+                            `;
+                        }).join('')}
+                    </div>
+                    
+                    ${state.history.length > 0 ? `<button onclick="if(confirm('Cancellare tutto?')){deleteCloudHistory();render()}" class="w-full mt-4 py-2 glass rounded-lg text-red-400 text-sm">🗑️ Cancella</button>` : ''}
+                `;
+            }
+
+            // Account TAB
+            if (state.activeTab === 'account') {
+                content = `
+                    <div class="glass rounded-xl p-6 text-center">
+                        <div class="w-20 h-20 rounded-full bg-gradient-to-br from-blue-400 to-purple-500 flex items-center justify-center mx-auto mb-4">
+                            ${state.user?.photoURL ? `<img src="${state.user.photoURL}" class="w-full h-full rounded-full"/>` : '<span class="text-3xl">👤</span>'}
+                        </div>
+                        
+                        ${state.user ? `
+                            <h3 class="font-bold text-white text-lg">${state.user.displayName || 'Utente'}</h3>
+                            <p class="text-gray-500 text-sm">${state.user.email}</p>
+                            <div class="mt-4 p-3 bg-green-500/20 rounded-lg">
+                                <p class="text-green-400 text-sm">☁️ Sync attivo</p>
+                                <p class="text-xs text-gray-500">I tuoi pick sono sincronizzati</p>
+                            </div>
+                            <button onclick="signOut()" class="mt-4 w-full py-3 glass rounded-xl text-red-400 font-medium">🚪 Logout</button>
+                        ` : `
+                            <h3 class="font-bold text-white text-lg">Non loggato</h3>
+                            <p class="text-gray-500 text-sm mb-4">Accedi per sincronizzare i pick</p>
+                            ${isFirebaseConfigured ? `
+                                <button onclick="signInWithGoogle()" class="w-full py-3 rounded-xl font-bold bg-white text-gray-800 flex items-center justify-center gap-2">
+                                    <img src="https://www.google.com/favicon.ico" class="w-5 h-5"/> Accedi con Google
+                                </button>
+                            ` : `
+                                <div class="p-4 bg-amber-500/20 rounded-lg">
+                                    <p class="text-amber-400 text-sm">⚠️ Firebase non configurato</p>
+                                    <p class="text-xs text-gray-500 mt-1">Segui le istruzioni in SETUP_FIREBASE.txt</p>
+                                </div>
+                            `}
+                        `}
+                    </div>
+                    
+                    <div class="glass rounded-xl p-4 mt-4">
+                        <h4 class="font-bold mb-3">⚙️ Impostazioni</h4>
+                        <div class="space-y-2">
+                            <div class="flex justify-between items-center py-2">
+                                <span class="text-gray-400">API Key</span>
+                                <span class="text-xs text-gray-500">${state.apiKey ? '✅ Configurata' : '❌ Mancante'}</span>
+                            </div>
+                            <div class="flex justify-between items-center py-2">
+                                <span class="text-gray-400">Firebase</span>
+                                <span class="text-xs text-gray-500">${isFirebaseConfigured ? '✅ OK' : '❌ Non config.'}</span>
+                            </div>
+                        </div>
+                        <button onclick="localStorage.clear();location.reload()" class="w-full mt-4 py-2 glass rounded-lg text-red-400 text-sm">🔄 Reset App</button>
+                    </div>
+                `;
+            }
+
+            // MAIN LAYOUT
+            const sportColors = { football: 'from-emerald-400 to-cyan-500', nba: 'from-orange-400 to-yellow-500', tennis: 'from-purple-400 to-pink-500' };
+            
+            root.innerHTML = `
+                <div class="max-w-lg mx-auto min-h-screen flex flex-col">
+                    <header class="glass sticky top-0 z-50 border-b border-white/5">
+                        <div class="px-4 py-3 flex items-center justify-between">
+                            <div class="flex items-center gap-2">
+                                <div class="w-9 h-9 rounded-xl bg-gradient-to-br ${sportColors[sport]} flex items-center justify-center">
+                                    <span class="text-lg">${sport === 'football' ? '⚽' : sport === 'nba' ? '🏀' : '🎾'}</span>
+                                </div>
+                                <div>
+                                    <h1 class="font-black text-white text-sm">ULTRA BET V6</h1>
+                                    <p class="text-[10px] text-gray-500">☁️ Cloud</p>
+                                </div>
+                            </div>
+                            
+                            <div class="flex items-center gap-2">
+                                <div class="flex items-center gap-1 glass rounded-xl p-1">
+                                    <button onclick="state.activeSport='football';state.activeTab='hot';render()" class="px-2.5 py-1.5 rounded-lg text-sm ${sport === 'football' ? 'bg-gradient-to-r from-emerald-400 to-cyan-500 text-gray-900 font-bold' : 'text-gray-500'}">⚽</button>
+                                    <button onclick="state.activeSport='nba';state.activeTab='hot';render()" class="px-2.5 py-1.5 rounded-lg text-sm ${sport === 'nba' ? 'bg-gradient-to-r from-orange-400 to-yellow-500 text-gray-900 font-bold' : 'text-gray-500'}">🏀</button>
+                                    <button onclick="state.activeSport='tennis';state.activeTab='hot';render()" class="px-2.5 py-1.5 rounded-lg text-sm ${sport === 'tennis' ? 'bg-gradient-to-r from-purple-400 to-pink-500 text-white font-bold' : 'text-gray-500'}">🎾</button>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="flex px-3 pb-2 gap-1">
+                            <button onclick="state.activeTab='hot';render()" class="flex-1 py-2 rounded-lg text-xs font-bold ${state.activeTab === 'hot' ? 'bg-gradient-to-r ' + sportColors[sport] + ' text-gray-900' : 'text-gray-500'}">🔥 Hot</button>
+                            <button onclick="state.activeTab='stats';render()" class="flex-1 py-2 rounded-lg text-xs font-bold ${state.activeTab === 'stats' ? 'bg-gradient-to-r ' + sportColors[sport] + ' text-gray-900' : 'text-gray-500'}">📊 Stats</button>
+                            <button onclick="state.activeTab='account';render()" class="flex-1 py-2 rounded-lg text-xs font-bold ${state.activeTab === 'account' ? 'bg-gradient-to-r ' + sportColors[sport] + ' text-gray-900' : 'text-gray-500'}">👤 Account</button>
+                        </div>
+                    </header>
+                    
+                    <main class="flex-1 p-4 pb-6">${content}</main>
+                </div>
+            `;
+        }
+
+        // ============================================================
+        // ACTIONS
+        // ============================================================
+
+        function saveKey() {
+            const key = document.getElementById('apiKeyInput').value.trim();
+            if (key) {
+                localStorage.setItem('footballDataApiKey', key);
+                state.apiKey = key;
+                state.showSetup = false;
+                render();
+                loadFootballMatches();
+            }
+        }
+
+        // INIT
+        setupAuthListener();
+    </script>
+</body>
+</html>
