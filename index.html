@@ -3,18 +3,17 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>🎯 BOMBA BET | Real Sports</title>
+<title>🎯 BOMBA BET</title>
 
 <script src="https://cdn.tailwindcss.com"></script>
 
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js"></script>
 
 <style>
 body{background:#0a0a0f;color:#e4e4e7;font-family:Inter,sans-serif}
 .glass{background:rgba(255,255,255,.05);backdrop-filter:blur(12px);border:1px solid rgba(255,255,255,.08)}
-.loader{animation:spin 1s linear infinite}
-@keyframes spin{to{transform:rotate(360deg)}}
 </style>
 </head>
 
@@ -22,25 +21,27 @@ body{background:#0a0a0f;color:#e4e4e7;font-family:Inter,sans-serif}
 <div id="root"></div>
 
 <script>
-// ================= CONFIG =================
+// ================= FIREBASE =================
 firebase.initializeApp({
   apiKey: "AIzaSyAzXGyOUDeok9zHZ3Lrqplb9I4u2xxGsPY",
-  authDomain: "bombabet26.firebaseapp.com"
+  authDomain: "bombabet26.firebaseapp.com",
+  databaseURL: "https://bombabet26-default-rtdb.europe-west1.firebasedatabase.app",
+  projectId: "bombabet26"
 });
 
 const auth = firebase.auth();
+const db   = firebase.database();
 
+// ================= API =================
 const API_KEY = "e6b4654b35e54995aeb2834ae3f81bcb";
 const PROXY = url => `https://corsproxy.io/?${encodeURIComponent(url)}`;
 
 // ================= STATE =================
 let state = {
   user:null,
-  loading:false,
   sport:'football',
   football:[],
-  basketball:[],
-  tennis:[]
+  basketball:[]
 };
 
 // ================= AUTH =================
@@ -49,8 +50,7 @@ auth.onAuthStateChanged(user=>{
   render();
   if(user){
     fetchFootball();
-    fetchBasket();
-    fetchTennis();
+    fetchBasketball();
   }
 });
 
@@ -70,7 +70,7 @@ function plusDays(d){
   return x.toISOString().split("T")[0];
 }
 
-// ================= FOOTBALL =================
+// ================= FOOTBALL (REALI) =================
 async function fetchFootball(){
   const url = `
 https://v3.football.api-sports.io/fixtures
@@ -79,46 +79,35 @@ https://v3.football.api-sports.io/fixtures
 &to=${plusDays(7)}
 `.replace(/\s+/g,'');
 
-  const r = await fetch(PROXY(url),{headers:{'x-apisports-key':API_KEY}});
+  const r = await fetch(PROXY(url),{
+    headers:{'x-apisports-key':API_KEY}
+  });
   const j = await r.json();
 
   state.football = (j.response||[])
-    .filter(m=>['NS','TBD','LIVE'].includes(m.fixture.status.short))
+    .filter(m => ['NS','LIVE','TBD'].includes(m.fixture.status.short))
+    .sort((a,b)=>new Date(a.fixture.date)-new Date(b.fixture.date))
     .slice(0,20);
 
   render();
 }
 
-// ================= BASKET =================
-async function fetchBasket(){
+// ================= BASKET (REALI) =================
+async function fetchBasketball(){
   const url = `
 https://v3.basketball.api-sports.io/games
-?date=${today()}
-`.replace(/\s+/g,'');
-
-  const r = await fetch(PROXY(url),{headers:{'x-apisports-key':API_KEY}});
-  const j = await r.json();
-
-  state.basketball = (j.response||[])
-    .filter(g=>['NS','LIVE'].includes(g.status.short))
-    .slice(0,20);
-
-  render();
-}
-
-// ================= TENNIS =================
-async function fetchTennis(){
-  const url = `
-https://v3.tennis.api-sports.io/fixtures
 ?from=${today()}
 &to=${plusDays(7)}
 `.replace(/\s+/g,'');
 
-  const r = await fetch(PROXY(url),{headers:{'x-apisports-key':API_KEY}});
+  const r = await fetch(PROXY(url),{
+    headers:{'x-apisports-key':API_KEY}
+  });
   const j = await r.json();
 
-  state.tennis = (j.response||[])
-    .filter(m=>['NS','LIVE'].includes(m.status.short))
+  state.basketball = (j.response||[])
+    .filter(g => ['NS','LIVE'].includes(g.status.short))
+    .sort((a,b)=>new Date(a.date)-new Date(b.date))
     .slice(0,20);
 
   render();
@@ -138,6 +127,8 @@ function render(){
     return;
   }
 
+  const list = state[state.sport];
+
   root.innerHTML=`
   <div class="max-w-lg mx-auto p-3 space-y-3">
 
@@ -147,59 +138,31 @@ function render(){
     </div>
 
     <div class="flex gap-1">
-      ${['football','basketball','tennis'].map(s=>`
-        <button onclick="state.sport='${s}';render()"
-          class="flex-1 py-2 rounded ${state.sport===s?'bg-white/20':'glass'}">
-          ${s==='football'?'⚽':s==='basketball'?'🏀':'🎾'}
-        </button>
-      `).join('')}
+      <button onclick="state.sport='football';render()"
+        class="flex-1 py-2 rounded ${state.sport==='football'?'bg-white/20':'glass'}">⚽</button>
+      <button onclick="state.sport='basketball';render()"
+        class="flex-1 py-2 rounded ${state.sport==='basketball'?'bg-white/20':'glass'}">🏀</button>
     </div>
 
-    ${renderMatches()}
-
-  </div>`;
-}
-
-function renderMatches(){
-  const list = state[state.sport];
-  if(!list || list.length===0){
-    return `<div class="glass p-4 text-center text-gray-400">Nessuna partita</div>`;
-  }
-
-  return `
-  <div class="space-y-2">
-    ${list.map(m=>{
-      if(state.sport==='football'){
-        return matchBox(
-          m.teams.home.name,
-          m.teams.away.name,
-          m.fixture.date
-        );
+    <div class="space-y-2">
+      ${(!list||list.length===0)
+        ? `<div class="glass p-4 text-center text-gray-400">Nessuna partita</div>`
+        : list.map(m=>{
+            const a = state.sport==='football'?m.teams.home.name:m.teams.home.name;
+            const b = state.sport==='football'?m.teams.away.name:m.teams.away.name;
+            const d = state.sport==='football'?m.fixture.date:m.date;
+            const x = new Date(d);
+            return `
+            <div class="glass p-3 rounded-lg">
+              <p class="font-bold text-sm">${a} vs ${b}</p>
+              <p class="text-xs text-gray-400">
+                ${x.toLocaleDateString()} ${x.toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'})}
+              </p>
+            </div>`;
+          }).join('')
       }
-      if(state.sport==='basketball'){
-        return matchBox(
-          m.teams.home.name,
-          m.teams.away.name,
-          m.date
-        );
-      }
-      return matchBox(
-        m.players[0].player.name,
-        m.players[1].player.name,
-        m.date
-      );
-    }).join('')}
-  </div>`;
-}
+    </div>
 
-function matchBox(a,b,d){
-  const x=new Date(d);
-  return `
-  <div class="glass p-3 rounded-lg">
-    <p class="font-bold text-sm">${a} vs ${b}</p>
-    <p class="text-xs text-gray-400">
-      ${x.toLocaleDateString()} ${x.toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'})}
-    </p>
   </div>`;
 }
 </script>
