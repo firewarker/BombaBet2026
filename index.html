@@ -1,0 +1,1086 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🎯 BOMBA BET | Football • NBA • Tennis</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+    
+    <!-- FIREBASE SDK -->
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js"></script>
+    
+    <style>
+        * { font-family: 'Inter', sans-serif; }
+        body { background: #0a0a0f; color: #e4e4e7; min-height: 100vh; }
+        .glass { background: rgba(255,255,255,0.03); backdrop-filter: blur(10px); border: 1px solid rgba(255,255,255,0.08); }
+        .glow { box-shadow: 0 0 30px rgba(0,212,170,0.15); }
+        .glow-orange { box-shadow: 0 0 30px rgba(249,115,22,0.15); }
+        .glow-purple { box-shadow: 0 0 30px rgba(168,85,247,0.15); }
+        .gradient-text { background: linear-gradient(135deg, #00d4aa, #0ea5e9); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+        .gradient-orange { background: linear-gradient(135deg, #f97316, #eab308); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+        .gradient-purple { background: linear-gradient(135deg, #a855f7, #ec4899); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+        .loader { animation: spin 1s linear infinite; }
+        @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+        .slide-up { animation: slideUp 0.3s ease-out forwards; opacity: 0; }
+        @keyframes slideUp { from { transform: translateY(20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+        select, input { background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); color: white; }
+        ::-webkit-scrollbar { width: 4px; height: 4px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: rgba(0,212,170,0.5); border-radius: 2px; }
+        .match-card:hover { background: rgba(255,255,255,0.06); cursor: pointer; }
+        .conf-high { color: #00d4aa; }
+        .conf-mid { color: #f59e0b; }
+        .conf-low { color: #ef4444; }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+
+    <script>
+        // ============================================================
+        // 🎯 BOMBA BET - VERSIONE DEFINITIVA
+        // ============================================================
+        // ✅ Partite REALI da API
+        // ✅ Firebase Cloud Sync  
+        // ✅ Calcio: GG, Goals, Corner, Cards
+        // ✅ NBA: Totali, Player Props
+        // ✅ Tennis: Vincente, Games
+        // ============================================================
+
+        // 🔥 FIREBASE CONFIG - NON MODIFICARE
+        const firebaseConfig = {
+            apiKey: "AIzaSyAzXGyOUDeok9zHZ3Lrqplb9I4u2xxGsPY",
+            authDomain: "bombabet26.firebaseapp.com",
+            databaseURL: "https://bombabet26-default-rtdb.europe-west1.firebasedatabase.app",
+            projectId: "bombabet26",
+            storageBucket: "bombabet26.firebasestorage.app",
+            messagingSenderId: "765939756236",
+            appId: "1:765939756236:web:e071a398659e1171fc2669"
+        };
+
+        // 🔑 API KEY
+        const API_KEY = "e6b4654b35e54995aeb2834ae3f81bcb";
+
+        // Initialize Firebase
+        let auth, database;
+        try {
+            firebase.initializeApp(firebaseConfig);
+            auth = firebase.auth();
+            database = firebase.database();
+        } catch (e) { console.error('Firebase init error:', e); }
+
+        // ============================================================
+        // 🏆 CAMPIONATI
+        // ============================================================
+        
+        const FOOTBALL_LEAGUES = {
+            135: { name: "Serie A", flag: "🇮🇹" },
+            39: { name: "Premier League", flag: "🏴󠁧󠁢󠁥󠁮󠁧󠁿" },
+            140: { name: "La Liga", flag: "🇪🇸" },
+            78: { name: "Bundesliga", flag: "🇩🇪" },
+            61: { name: "Ligue 1", flag: "🇫🇷" },
+            136: { name: "Serie B", flag: "🇮🇹" },
+            40: { name: "Championship", flag: "🏴󠁧󠁢󠁥󠁮󠁧󠁿" },
+            141: { name: "La Liga 2", flag: "🇪🇸" },
+            79: { name: "2. Bundesliga", flag: "🇩🇪" },
+            88: { name: "Eredivisie", flag: "🇳🇱" },
+            94: { name: "Primeira Liga", flag: "🇵🇹" },
+            144: { name: "Jupiler Pro", flag: "🇧🇪" },
+            203: { name: "Super Lig", flag: "🇹🇷" },
+            207: { name: "Super League", flag: "🇨🇭" },
+            179: { name: "Premiership", flag: "🏴󠁧󠁢󠁳󠁣󠁴󠁿" },
+            2: { name: "Champions League", flag: "🏆" },
+            3: { name: "Europa League", flag: "🏆" },
+            848: { name: "Conference League", flag: "🏆" },
+            71: { name: "Brasileirão", flag: "🇧🇷" },
+            128: { name: "Liga Argentina", flag: "🇦🇷" }
+        };
+
+        // Database statistiche squadre
+        const TEAM_STATS = {
+            // SERIE A
+            'Juventus': { corners: 5.8, cornersAg: 4.2, cards: 2.1, cardsAg: 1.8, gf: 1.8, ga: 0.9, ggRate: 48 },
+            'Inter': { corners: 6.2, cornersAg: 3.8, cards: 1.9, cardsAg: 2.0, gf: 2.4, ga: 0.8, ggRate: 52 },
+            'Milan': { corners: 5.5, cornersAg: 4.5, cards: 2.3, cardsAg: 1.9, gf: 2.1, ga: 1.1, ggRate: 58 },
+            'Napoli': { corners: 5.9, cornersAg: 4.0, cards: 2.0, cardsAg: 2.1, gf: 2.2, ga: 1.0, ggRate: 55 },
+            'Roma': { corners: 5.3, cornersAg: 4.8, cards: 2.4, cardsAg: 2.0, gf: 1.6, ga: 1.2, ggRate: 52 },
+            'Lazio': { corners: 5.4, cornersAg: 4.6, cards: 2.2, cardsAg: 2.2, gf: 1.9, ga: 1.3, ggRate: 60 },
+            'Atalanta': { corners: 6.0, cornersAg: 4.1, cards: 2.1, cardsAg: 1.8, gf: 2.5, ga: 1.2, ggRate: 65 },
+            'Fiorentina': { corners: 5.2, cornersAg: 4.9, cards: 2.3, cardsAg: 2.1, gf: 1.7, ga: 1.1, ggRate: 55 },
+            'Bologna': { corners: 5.1, cornersAg: 5.0, cards: 2.0, cardsAg: 2.3, gf: 1.5, ga: 1.2, ggRate: 50 },
+            'Torino': { corners: 4.8, cornersAg: 5.2, cards: 2.4, cardsAg: 2.0, gf: 1.3, ga: 1.4, ggRate: 52 },
+            'Monza': { corners: 4.5, cornersAg: 5.5, cards: 2.2, cardsAg: 2.1, gf: 1.1, ga: 1.5, ggRate: 48 },
+            'Udinese': { corners: 4.6, cornersAg: 5.3, cards: 2.3, cardsAg: 2.0, gf: 1.2, ga: 1.4, ggRate: 45 },
+            'Genoa': { corners: 4.4, cornersAg: 5.6, cards: 2.5, cardsAg: 1.9, gf: 1.0, ga: 1.6, ggRate: 42 },
+            'Cagliari': { corners: 4.3, cornersAg: 5.7, cards: 2.4, cardsAg: 2.2, gf: 1.1, ga: 1.7, ggRate: 48 },
+            'Empoli': { corners: 4.2, cornersAg: 5.8, cards: 2.1, cardsAg: 2.3, gf: 0.9, ga: 1.4, ggRate: 40 },
+            'Parma': { corners: 4.5, cornersAg: 5.5, cards: 2.2, cardsAg: 2.1, gf: 1.2, ga: 1.6, ggRate: 50 },
+            'Verona': { corners: 4.4, cornersAg: 5.6, cards: 2.3, cardsAg: 2.0, gf: 1.1, ga: 1.8, ggRate: 52 },
+            'Como': { corners: 4.3, cornersAg: 5.7, cards: 2.0, cardsAg: 2.2, gf: 1.0, ga: 1.5, ggRate: 45 },
+            'Lecce': { corners: 4.1, cornersAg: 5.9, cards: 2.4, cardsAg: 2.1, gf: 0.8, ga: 1.6, ggRate: 38 },
+            'Venezia': { corners: 4.0, cornersAg: 6.0, cards: 2.2, cardsAg: 2.3, gf: 0.9, ga: 1.9, ggRate: 42 },
+            // PREMIER LEAGUE
+            'Manchester City': { corners: 7.2, cornersAg: 3.1, cards: 1.5, cardsAg: 1.8, gf: 2.8, ga: 0.7, ggRate: 48 },
+            'Arsenal': { corners: 6.5, cornersAg: 3.8, cards: 1.7, cardsAg: 1.9, gf: 2.4, ga: 0.8, ggRate: 52 },
+            'Liverpool': { corners: 6.8, cornersAg: 3.5, cards: 1.6, cardsAg: 2.0, gf: 2.6, ga: 0.9, ggRate: 58 },
+            'Chelsea': { corners: 5.8, cornersAg: 4.2, cards: 1.9, cardsAg: 1.8, gf: 1.9, ga: 1.1, ggRate: 55 },
+            'Manchester United': { corners: 5.5, cornersAg: 4.8, cards: 2.0, cardsAg: 1.7, gf: 1.6, ga: 1.3, ggRate: 58 },
+            'Tottenham': { corners: 5.9, cornersAg: 4.5, cards: 1.8, cardsAg: 2.1, gf: 2.1, ga: 1.2, ggRate: 62 },
+            'Newcastle': { corners: 5.6, cornersAg: 4.6, cards: 1.9, cardsAg: 1.9, gf: 1.8, ga: 1.0, ggRate: 52 },
+            'Aston Villa': { corners: 5.4, cornersAg: 4.8, cards: 2.0, cardsAg: 1.8, gf: 2.0, ga: 1.1, ggRate: 58 },
+            'Brighton': { corners: 5.3, cornersAg: 4.7, cards: 1.8, cardsAg: 2.0, gf: 1.7, ga: 1.2, ggRate: 55 },
+            'West Ham': { corners: 5.0, cornersAg: 5.0, cards: 2.1, cardsAg: 1.9, gf: 1.5, ga: 1.4, ggRate: 52 },
+            'Bournemouth': { corners: 4.8, cornersAg: 5.2, cards: 2.0, cardsAg: 2.0, gf: 1.4, ga: 1.5, ggRate: 50 },
+            'Fulham': { corners: 4.9, cornersAg: 5.1, cards: 2.1, cardsAg: 1.9, gf: 1.3, ga: 1.3, ggRate: 48 },
+            'Crystal Palace': { corners: 4.7, cornersAg: 5.3, cards: 2.2, cardsAg: 1.8, gf: 1.2, ga: 1.4, ggRate: 45 },
+            'Wolves': { corners: 4.6, cornersAg: 5.4, cards: 2.3, cardsAg: 1.9, gf: 1.1, ga: 1.6, ggRate: 42 },
+            'Everton': { corners: 4.5, cornersAg: 5.5, cards: 2.2, cardsAg: 2.0, gf: 1.0, ga: 1.5, ggRate: 40 },
+            'Brentford': { corners: 4.8, cornersAg: 5.2, cards: 2.0, cardsAg: 2.1, gf: 1.4, ga: 1.4, ggRate: 52 },
+            'Nottingham Forest': { corners: 4.4, cornersAg: 5.6, cards: 2.1, cardsAg: 2.0, gf: 1.2, ga: 1.3, ggRate: 45 },
+            'Leicester': { corners: 4.6, cornersAg: 5.4, cards: 2.0, cardsAg: 2.1, gf: 1.3, ga: 1.6, ggRate: 50 },
+            'Ipswich': { corners: 4.2, cornersAg: 5.8, cards: 2.2, cardsAg: 2.0, gf: 0.9, ga: 1.8, ggRate: 42 },
+            'Southampton': { corners: 4.0, cornersAg: 6.0, cards: 2.3, cardsAg: 1.9, gf: 0.8, ga: 2.0, ggRate: 38 },
+            // LA LIGA
+            'Real Madrid': { corners: 6.8, cornersAg: 3.2, cards: 2.0, cardsAg: 2.4, gf: 2.5, ga: 0.8, ggRate: 50 },
+            'Barcelona': { corners: 7.0, cornersAg: 3.0, cards: 1.8, cardsAg: 2.5, gf: 2.7, ga: 1.0, ggRate: 55 },
+            'Atletico Madrid': { corners: 5.2, cornersAg: 4.0, cards: 2.8, cardsAg: 2.2, gf: 1.8, ga: 0.7, ggRate: 42 },
+            'Athletic Bilbao': { corners: 5.5, cornersAg: 4.5, cards: 2.5, cardsAg: 2.3, gf: 1.6, ga: 1.0, ggRate: 48 },
+            'Real Sociedad': { corners: 5.3, cornersAg: 4.8, cards: 2.3, cardsAg: 2.4, gf: 1.5, ga: 1.1, ggRate: 50 },
+            'Villarreal': { corners: 5.6, cornersAg: 4.6, cards: 2.2, cardsAg: 2.5, gf: 1.7, ga: 1.2, ggRate: 55 },
+            'Sevilla': { corners: 5.4, cornersAg: 4.6, cards: 2.4, cardsAg: 2.3, gf: 1.4, ga: 1.3, ggRate: 48 },
+            'Real Betis': { corners: 5.2, cornersAg: 4.8, cards: 2.3, cardsAg: 2.2, gf: 1.5, ga: 1.2, ggRate: 52 },
+            // BUNDESLIGA
+            'Bayern Munich': { corners: 7.5, cornersAg: 2.8, cards: 1.4, cardsAg: 1.9, gf: 3.0, ga: 1.0, ggRate: 62 },
+            'Bayer Leverkusen': { corners: 6.8, cornersAg: 3.2, cards: 1.6, cardsAg: 1.8, gf: 2.6, ga: 0.8, ggRate: 55 },
+            'Borussia Dortmund': { corners: 6.2, cornersAg: 4.0, cards: 1.7, cardsAg: 1.7, gf: 2.3, ga: 1.3, ggRate: 65 },
+            'RB Leipzig': { corners: 5.9, cornersAg: 4.3, cards: 1.8, cardsAg: 1.8, gf: 2.1, ga: 1.1, ggRate: 58 },
+            'Stuttgart': { corners: 5.5, cornersAg: 4.8, cards: 1.9, cardsAg: 1.6, gf: 2.0, ga: 1.4, ggRate: 65 },
+            'Eintracht Frankfurt': { corners: 5.4, cornersAg: 4.6, cards: 2.0, cardsAg: 1.9, gf: 1.8, ga: 1.3, ggRate: 58 },
+            // LIGUE 1
+            'PSG': { corners: 7.8, cornersAg: 2.5, cards: 1.6, cardsAg: 2.2, gf: 2.8, ga: 0.7, ggRate: 45 },
+            'Monaco': { corners: 5.8, cornersAg: 4.2, cards: 1.9, cardsAg: 2.0, gf: 2.2, ga: 1.1, ggRate: 58 },
+            'Marseille': { corners: 5.5, cornersAg: 4.6, cards: 2.2, cardsAg: 2.1, gf: 1.8, ga: 1.2, ggRate: 55 },
+            'Lyon': { corners: 5.6, cornersAg: 4.5, cards: 2.0, cardsAg: 2.2, gf: 1.7, ga: 1.3, ggRate: 58 },
+            'Lille': { corners: 5.2, cornersAg: 4.9, cards: 2.1, cardsAg: 2.0, gf: 1.5, ga: 1.0, ggRate: 48 },
+            // ALTRI
+            'Ajax': { corners: 6.5, cornersAg: 3.5, cards: 1.8, cardsAg: 2.0, gf: 2.5, ga: 1.2, ggRate: 65 },
+            'PSV': { corners: 6.8, cornersAg: 3.2, cards: 1.6, cardsAg: 1.8, gf: 2.8, ga: 1.0, ggRate: 62 },
+            'Feyenoord': { corners: 6.0, cornersAg: 4.0, cards: 2.0, cardsAg: 1.9, gf: 2.3, ga: 1.3, ggRate: 68 },
+            'Benfica': { corners: 6.5, cornersAg: 3.5, cards: 1.9, cardsAg: 2.1, gf: 2.4, ga: 1.0, ggRate: 58 },
+            'Porto': { corners: 6.2, cornersAg: 3.8, cards: 2.1, cardsAg: 2.0, gf: 2.2, ga: 0.9, ggRate: 52 },
+            'Sporting': { corners: 6.0, cornersAg: 4.0, cards: 1.8, cardsAg: 2.2, gf: 2.3, ga: 1.1, ggRate: 55 }
+        };
+
+        // NBA Teams & Players
+        const NBA_TEAMS = {
+            'Los Angeles Lakers': { abbr: 'LAL', avgPts: 115.2, avgAllow: 113.8 },
+            'Boston Celtics': { abbr: 'BOS', avgPts: 120.5, avgAllow: 108.2 },
+            'Golden State Warriors': { abbr: 'GSW', avgPts: 112.8, avgAllow: 110.5 },
+            'Denver Nuggets': { abbr: 'DEN', avgPts: 116.5, avgAllow: 109.8 },
+            'Milwaukee Bucks': { abbr: 'MIL', avgPts: 118.2, avgAllow: 112.5 },
+            'Miami Heat': { abbr: 'MIA', avgPts: 110.2, avgAllow: 108.5 },
+            'Dallas Mavericks': { abbr: 'DAL', avgPts: 117.8, avgAllow: 114.2 },
+            'Phoenix Suns': { abbr: 'PHX', avgPts: 113.5, avgAllow: 112.8 },
+            'Cleveland Cavaliers': { abbr: 'CLE', avgPts: 118.5, avgAllow: 107.2 },
+            'Oklahoma City Thunder': { abbr: 'OKC', avgPts: 119.2, avgAllow: 108.8 },
+            'New York Knicks': { abbr: 'NYK', avgPts: 112.5, avgAllow: 110.2 },
+            'Philadelphia 76ers': { abbr: 'PHI', avgPts: 111.8, avgAllow: 109.5 },
+            'Minnesota Timberwolves': { abbr: 'MIN', avgPts: 112.8, avgAllow: 106.5 },
+            'Sacramento Kings': { abbr: 'SAC', avgPts: 114.5, avgAllow: 113.2 },
+            'Indiana Pacers': { abbr: 'IND', avgPts: 118.8, avgAllow: 116.5 },
+            'Memphis Grizzlies': { abbr: 'MEM', avgPts: 110.5, avgAllow: 109.8 },
+            'Houston Rockets': { abbr: 'HOU', avgPts: 110.2, avgAllow: 108.5 },
+            'Orlando Magic': { abbr: 'ORL', avgPts: 108.5, avgAllow: 105.2 },
+            'Atlanta Hawks': { abbr: 'ATL', avgPts: 116.5, avgAllow: 118.2 },
+            'Chicago Bulls': { abbr: 'CHI', avgPts: 109.8, avgAllow: 112.5 },
+            'Brooklyn Nets': { abbr: 'BKN', avgPts: 108.2, avgAllow: 115.8 },
+            'Toronto Raptors': { abbr: 'TOR', avgPts: 107.5, avgAllow: 114.2 },
+            'San Antonio Spurs': { abbr: 'SAS', avgPts: 110.8, avgAllow: 116.5 },
+            'Portland Trail Blazers': { abbr: 'POR', avgPts: 106.2, avgAllow: 115.8 },
+            'Utah Jazz': { abbr: 'UTA', avgPts: 112.5, avgAllow: 118.2 },
+            'Detroit Pistons': { abbr: 'DET', avgPts: 105.8, avgAllow: 116.5 },
+            'Charlotte Hornets': { abbr: 'CHA', avgPts: 106.5, avgAllow: 117.2 },
+            'Washington Wizards': { abbr: 'WAS', avgPts: 108.2, avgAllow: 120.5 },
+            'New Orleans Pelicans': { abbr: 'NOP', avgPts: 110.5, avgAllow: 112.8 },
+            'LA Clippers': { abbr: 'LAC', avgPts: 109.8, avgAllow: 110.5 }
+        };
+
+        const NBA_PLAYERS = {
+            'LeBron James': { team: 'LAL', ppg: 25.8, rpg: 7.5, apg: 8.2 },
+            'Anthony Davis': { team: 'LAL', ppg: 27.2, rpg: 12.1, apg: 3.5 },
+            'Jayson Tatum': { team: 'BOS', ppg: 28.5, rpg: 8.8, apg: 5.2 },
+            'Jaylen Brown': { team: 'BOS', ppg: 24.2, rpg: 5.8, apg: 3.8 },
+            'Stephen Curry': { team: 'GSW', ppg: 26.8, rpg: 4.5, apg: 6.2 },
+            'Nikola Jokic': { team: 'DEN', ppg: 29.5, rpg: 13.2, apg: 10.8 },
+            'Giannis Antetokounmpo': { team: 'MIL', ppg: 31.2, rpg: 11.8, apg: 6.5 },
+            'Luka Doncic': { team: 'DAL', ppg: 33.5, rpg: 9.2, apg: 9.8 },
+            'Kevin Durant': { team: 'PHX', ppg: 27.8, rpg: 6.5, apg: 5.2 },
+            'Donovan Mitchell': { team: 'CLE', ppg: 26.8, rpg: 5.2, apg: 6.1 },
+            'Shai Gilgeous-Alexander': { team: 'OKC', ppg: 31.5, rpg: 5.5, apg: 6.2 },
+            'Anthony Edwards': { team: 'MIN', ppg: 28.5, rpg: 5.8, apg: 5.5 },
+            'Jalen Brunson': { team: 'NYK', ppg: 28.2, rpg: 3.8, apg: 7.5 },
+            'Joel Embiid': { team: 'PHI', ppg: 28.5, rpg: 11.2, apg: 5.8 },
+            'De\'Aaron Fox': { team: 'SAC', ppg: 26.8, rpg: 4.5, apg: 6.0 },
+            'Tyrese Haliburton': { team: 'IND', ppg: 20.5, rpg: 4.0, apg: 10.8 },
+            'Jimmy Butler': { team: 'MIA', ppg: 22.5, rpg: 5.8, apg: 5.2 },
+            'Bam Adebayo': { team: 'MIA', ppg: 18.8, rpg: 10.5, apg: 4.8 },
+            'Devin Booker': { team: 'PHX', ppg: 27.2, rpg: 4.8, apg: 6.8 },
+            'Kyrie Irving': { team: 'DAL', ppg: 25.8, rpg: 5.1, apg: 5.5 }
+        };
+
+        // Tennis Players
+        const TENNIS_PLAYERS = {
+            'Sinner J.': { rank: 1, winRate: 82, avgGames: 21.2 },
+            'Djokovic N.': { rank: 2, winRate: 78, avgGames: 22.0 },
+            'Alcaraz C.': { rank: 3, winRate: 76, avgGames: 22.5 },
+            'Medvedev D.': { rank: 4, winRate: 70, avgGames: 23.0 },
+            'Zverev A.': { rank: 5, winRate: 68, avgGames: 23.2 },
+            'Rublev A.': { rank: 6, winRate: 65, avgGames: 22.8 },
+            'Rune H.': { rank: 7, winRate: 62, avgGames: 23.5 },
+            'Fritz T.': { rank: 8, winRate: 64, avgGames: 22.5 },
+            'Ruud C.': { rank: 9, winRate: 63, avgGames: 22.8 },
+            'Dimitrov G.': { rank: 10, winRate: 60, avgGames: 23.0 },
+            'Swiatek I.': { rank: 1, winRate: 85, avgGames: 18.5 },
+            'Sabalenka A.': { rank: 2, winRate: 75, avgGames: 20.0 },
+            'Gauff C.': { rank: 3, winRate: 70, avgGames: 21.0 },
+            'Rybakina E.': { rank: 4, winRate: 68, avgGames: 20.5 }
+        };
+
+        // ============================================================
+        // STATE
+        // ============================================================
+
+        let state = {
+            user: null,
+            authLoading: true,
+            activeSport: 'football',
+            activeTab: 'matches',
+            selectedLeague: 135,
+            matches: [],
+            selectedMatch: null,
+            loading: false,
+            error: null,
+            history: [],
+            syncStatus: 'offline'
+        };
+
+        // ============================================================
+        // FIREBASE
+        // ============================================================
+
+        function setupAuthListener() {
+            if (!auth) {
+                state.authLoading = false;
+                state.history = JSON.parse(localStorage.getItem('bombaBetHistory') || '[]');
+                render();
+                return;
+            }
+            
+            auth.onAuthStateChanged((user) => {
+                state.user = user;
+                state.authLoading = false;
+                if (user) {
+                    loadCloudHistory();
+                    setupRealtimeSync();
+                } else {
+                    state.history = JSON.parse(localStorage.getItem('bombaBetHistory') || '[]');
+                    state.syncStatus = 'offline';
+                }
+                render();
+            });
+        }
+
+        async function signInWithGoogle() {
+            try {
+                await auth.signInWithPopup(new firebase.auth.GoogleAuthProvider());
+            } catch (e) { alert('Errore login: ' + e.message); }
+        }
+
+        async function signOut() {
+            await auth.signOut();
+            state.user = null;
+            state.history = [];
+            render();
+        }
+
+        async function loadCloudHistory() {
+            state.syncStatus = 'syncing';
+            try {
+                const snapshot = await database.ref(`users/${state.user.uid}/history`).once('value');
+                state.history = snapshot.val() ? Object.values(snapshot.val()) : [];
+                state.syncStatus = 'synced';
+            } catch (e) { state.syncStatus = 'offline'; }
+            render();
+        }
+
+        function setupRealtimeSync() {
+            database.ref(`users/${state.user.uid}/history`).on('value', (snapshot) => {
+                state.history = snapshot.val() ? Object.values(snapshot.val()) : [];
+                state.syncStatus = 'synced';
+                render();
+            });
+        }
+
+        async function saveToCloud(entry) {
+            if (database && state.user) {
+                await database.ref(`users/${state.user.uid}/history/${entry.id}`).set(entry);
+            } else {
+                state.history.unshift(entry);
+                localStorage.setItem('bombaBetHistory', JSON.stringify(state.history));
+            }
+            render();
+        }
+
+        async function updateResult(id, result) {
+            if (database && state.user) {
+                await database.ref(`users/${state.user.uid}/history/${id}/result`).set(result);
+            }
+            const entry = state.history.find(e => e.id === id);
+            if (entry) entry.result = result;
+            localStorage.setItem('bombaBetHistory', JSON.stringify(state.history));
+            render();
+        }
+
+        // ============================================================
+        // API CALLS
+        // ============================================================
+
+        async function apiCall(url) {
+            const response = await fetch(url, {
+                method: 'GET',
+                headers: {
+                    'x-rapidapi-key': API_KEY,
+                    'x-rapidapi-host': url.includes('football') ? 'v3.football.api-sports.io' : 
+                                       url.includes('basketball') ? 'v1.basketball.api-sports.io' : 
+                                       'v1.tennis.api-sports.io'
+                }
+            });
+            return response.json();
+        }
+
+        async function loadMatches() {
+            state.loading = true;
+            state.error = null;
+            state.matches = [];
+            state.selectedMatch = null;
+            render();
+
+            try {
+                if (state.activeSport === 'football') {
+                    const data = await apiCall(`https://v3.football.api-sports.io/fixtures?league=${state.selectedLeague}&season=2024&next=20`);
+                    if (data.response && data.response.length > 0) {
+                        state.matches = data.response;
+                    } else {
+                        state.error = 'Nessuna partita trovata';
+                    }
+                } else if (state.activeSport === 'nba') {
+                    // Try multiple dates
+                    for (let i = 0; i <= 5; i++) {
+                        const date = getDateString(i);
+                        const data = await apiCall(`https://v1.basketball.api-sports.io/games?league=12&season=2024-2025&date=${date}`);
+                        if (data.response && data.response.length > 0) {
+                            const upcoming = data.response.filter(g => g.status.short !== 'FT' && g.status.short !== 'AOT');
+                            if (upcoming.length > 0) {
+                                state.matches = upcoming;
+                                break;
+                            }
+                        }
+                    }
+                    if (state.matches.length === 0) state.error = 'Nessuna partita NBA trovata';
+                } else if (state.activeSport === 'tennis') {
+                    for (let i = 0; i <= 5; i++) {
+                        const date = getDateString(i);
+                        const data = await apiCall(`https://v1.tennis.api-sports.io/games?date=${date}`);
+                        if (data.response && data.response.length > 0) {
+                            const upcoming = data.response.filter(g => g.status.short === 'NS');
+                            if (upcoming.length > 0) {
+                                state.matches = upcoming.slice(0, 20);
+                                break;
+                            }
+                        }
+                    }
+                    if (state.matches.length === 0) state.error = 'Nessuna partita Tennis trovata';
+                }
+            } catch (e) {
+                console.error('API Error:', e);
+                state.error = 'Errore caricamento. Riprova.';
+            }
+
+            state.loading = false;
+            render();
+        }
+
+        function getDateString(daysFromNow) {
+            const d = new Date();
+            d.setDate(d.getDate() + daysFromNow);
+            return d.toISOString().split('T')[0];
+        }
+
+        // ============================================================
+        // ANALYSIS ALGORITHMS
+        // ============================================================
+
+        function getTeamStats(name) {
+            for (const [team, stats] of Object.entries(TEAM_STATS)) {
+                if (name.toLowerCase().includes(team.toLowerCase()) || team.toLowerCase().includes(name.toLowerCase())) {
+                    return stats;
+                }
+            }
+            return { corners: 5.0, cornersAg: 5.0, cards: 2.0, cardsAg: 2.0, gf: 1.3, ga: 1.3, ggRate: 50 };
+        }
+
+        function analyzeFootballMatch(home, away) {
+            const h = getTeamStats(home);
+            const a = getTeamStats(away);
+
+            // GG/NG
+            const homeScoreProb = Math.min(95, h.gf / 2.5 * 100);
+            const awayScoreProb = Math.min(95, a.gf / 2.5 * 100);
+            const avgGGRate = (h.ggRate + a.ggRate) / 2;
+            let ggProb = (homeScoreProb * awayScoreProb / 100) * 0.5 + avgGGRate * 0.5;
+            ggProb = Math.max(25, Math.min(78, ggProb));
+
+            // Goals
+            const homeGoalsExp = (h.gf * 1.05 + a.ga * 0.95) / 2;
+            const awayGoalsExp = (a.gf * 0.95 + h.ga * 1.05) / 2;
+            const totalGoalsExp = homeGoalsExp + awayGoalsExp;
+
+            // Corners
+            const homeCornersExp = (h.corners * 1.08 + a.cornersAg * 0.92) / 2;
+            const awayCornersExp = (a.corners * 0.92 + h.cornersAg * 1.08) / 2;
+            const totalCornersExp = homeCornersExp + awayCornersExp;
+
+            // Cards
+            const homeCardsExp = (h.cards * 0.88 + a.cardsAg * 1.12) / 2;
+            const awayCardsExp = (a.cards * 1.15 + h.cardsAg * 0.85) / 2;
+            const totalCardsExp = homeCardsExp + awayCardsExp;
+
+            return {
+                gg: {
+                    prob: ggProb,
+                    pick: ggProb > 52 ? 'GG' : 'NG',
+                    conf: 45 + Math.abs(ggProb - 50) * 0.8
+                },
+                goals: {
+                    exp: totalGoalsExp,
+                    lines: [1.5, 2.5, 3.5].map(line => ({
+                        line,
+                        pick: totalGoalsExp > line ? 'OVER' : 'UNDER',
+                        conf: Math.min(82, 48 + Math.abs(totalGoalsExp - line) * 15)
+                    }))
+                },
+                corners: {
+                    exp: totalCornersExp,
+                    lines: [8.5, 9.5, 10.5, 11.5].map(line => ({
+                        line,
+                        pick: totalCornersExp > line ? 'OVER' : 'UNDER',
+                        conf: Math.min(85, 50 + Math.abs(totalCornersExp - line) * 9)
+                    }))
+                },
+                cards: {
+                    exp: totalCardsExp,
+                    lines: [3.5, 4.5, 5.5].map(line => ({
+                        line,
+                        pick: totalCardsExp > line ? 'OVER' : 'UNDER',
+                        conf: Math.min(82, 48 + Math.abs(totalCardsExp - line) * 11)
+                    }))
+                }
+            };
+        }
+
+        function analyzeNBAGame(homeTeam, awayTeam) {
+            const h = NBA_TEAMS[homeTeam] || { avgPts: 112, avgAllow: 112 };
+            const a = NBA_TEAMS[awayTeam] || { avgPts: 112, avgAllow: 112 };
+
+            const homeExp = (h.avgPts + a.avgAllow) / 2 * 1.02;
+            const awayExp = (a.avgPts + h.avgAllow) / 2 * 0.98;
+            const totalExp = homeExp + awayExp;
+            const spread = homeExp - awayExp;
+
+            return {
+                total: {
+                    exp: totalExp,
+                    lines: [215.5, 220.5, 225.5, 230.5].map(line => ({
+                        line,
+                        pick: totalExp > line ? 'OVER' : 'UNDER',
+                        conf: Math.min(78, 45 + Math.abs(totalExp - line) * 2.5)
+                    }))
+                },
+                spread: {
+                    value: spread,
+                    pick: spread > 0 ? homeTeam : awayTeam,
+                    conf: Math.min(75, 48 + Math.abs(spread) * 2)
+                },
+                homeExp,
+                awayExp
+            };
+        }
+
+        function getPlayersForTeam(teamName) {
+            const players = [];
+            for (const [name, data] of Object.entries(NBA_PLAYERS)) {
+                const team = NBA_TEAMS[teamName];
+                if (team && data.team === team.abbr) {
+                    players.push({ name, ...data });
+                }
+            }
+            return players;
+        }
+
+        function analyzeTennisMatch(p1Name, p2Name) {
+            const p1 = getTennisPlayer(p1Name);
+            const p2 = getTennisPlayer(p2Name);
+
+            const rankDiff = p2.rank - p1.rank;
+            const winDiff = p1.winRate - p2.winRate;
+
+            let p1WinProb = 50 + rankDiff * 2 + winDiff * 0.3;
+            p1WinProb = Math.max(20, Math.min(80, p1WinProb));
+
+            const avgGames = (p1.avgGames + p2.avgGames) / 2;
+            const tightMatch = Math.abs(p1WinProb - 50) < 12;
+            const expGames = avgGames + (tightMatch ? 2.5 : -1.5);
+
+            return {
+                winner: {
+                    player: p1WinProb > 50 ? p1Name : p2Name,
+                    prob: p1WinProb > 50 ? p1WinProb : (100 - p1WinProb),
+                    conf: Math.min(80, 48 + Math.abs(p1WinProb - 50) * 0.7)
+                },
+                games: {
+                    exp: expGames,
+                    lines: [20.5, 21.5, 22.5, 23.5].map(line => ({
+                        line,
+                        pick: expGames > line ? 'OVER' : 'UNDER',
+                        conf: Math.min(78, 46 + Math.abs(expGames - line) * 8)
+                    }))
+                },
+                p1WinProb,
+                p2WinProb: 100 - p1WinProb
+            };
+        }
+
+        function getTennisPlayer(name) {
+            for (const [pName, stats] of Object.entries(TENNIS_PLAYERS)) {
+                if (name.toLowerCase().includes(pName.split(' ')[0].toLowerCase())) {
+                    return stats;
+                }
+            }
+            return { rank: 50, winRate: 50, avgGames: 22 };
+        }
+
+        // ============================================================
+        // SAVE PICKS
+        // ============================================================
+
+        async function savePick(desc, conf, sport) {
+            const entry = { 
+                id: Date.now(), 
+                sport, 
+                description: desc, 
+                conf: Math.round(conf), 
+                result: null, 
+                date: new Date().toISOString() 
+            };
+            await saveToCloud(entry);
+            alert('✅ Pick salvato!');
+        }
+
+        function getStats() {
+            const resolved = state.history.filter(e => e.result);
+            const won = resolved.filter(e => e.result === 'won').length;
+            return { 
+                total: state.history.length, 
+                won, 
+                lost: resolved.length - won, 
+                hitRate: resolved.length ? (won / resolved.length * 100).toFixed(1) : 0 
+            };
+        }
+
+        // ============================================================
+        // RENDER
+        // ============================================================
+
+        function formatDateTime(dateStr) {
+            if (!dateStr) return { date: '--', time: '--' };
+            const d = new Date(dateStr);
+            return {
+                date: d.toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit' }),
+                time: d.toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' })
+            };
+        }
+
+        function confClass(v) {
+            return v >= 65 ? 'conf-high' : v >= 52 ? 'conf-mid' : 'conf-low';
+        }
+
+        function render() {
+            const root = document.getElementById('root');
+
+            // Loading auth
+            if (state.authLoading) {
+                root.innerHTML = `<div class="min-h-screen flex items-center justify-center"><div class="w-12 h-12 border-4 border-cyan-400 border-t-transparent rounded-full loader"></div></div>`;
+                return;
+            }
+
+            // Login screen
+            if (!state.user) {
+                root.innerHTML = `
+                    <div class="min-h-screen flex items-center justify-center p-4">
+                        <div class="glass rounded-3xl p-8 max-w-md w-full slide-up" style="animation-delay:0.1s">
+                            <div class="text-center mb-8">
+                                <div class="w-24 h-24 rounded-2xl bg-gradient-to-br from-emerald-400 to-cyan-500 flex items-center justify-center mx-auto mb-4 glow">
+                                    <span class="text-5xl">🎯</span>
+                                </div>
+                                <h1 class="text-3xl font-black gradient-text">BOMBA BET</h1>
+                                <p class="text-gray-500 mt-2">Analisi Sportive Professionali</p>
+                            </div>
+                            <div class="grid grid-cols-3 gap-3 mb-8">
+                                <div class="glass rounded-xl p-4 text-center">
+                                    <span class="text-2xl">⚽</span>
+                                    <p class="text-xs text-gray-500 mt-2">Calcio</p>
+                                </div>
+                                <div class="glass rounded-xl p-4 text-center">
+                                    <span class="text-2xl">🏀</span>
+                                    <p class="text-xs text-gray-500 mt-2">NBA</p>
+                                </div>
+                                <div class="glass rounded-xl p-4 text-center">
+                                    <span class="text-2xl">🎾</span>
+                                    <p class="text-xs text-gray-500 mt-2">Tennis</p>
+                                </div>
+                            </div>
+                            <button onclick="signInWithGoogle()" class="w-full py-4 rounded-xl font-bold bg-white text-gray-800 flex items-center justify-center gap-3 hover:bg-gray-100 transition">
+                                <img src="https://www.google.com/favicon.ico" class="w-6 h-6"/> Accedi con Google
+                            </button>
+                        </div>
+                    </div>
+                `;
+                return;
+            }
+
+            let content = '';
+            const sport = state.activeSport;
+            const sportColors = { 
+                football: 'from-emerald-400 to-cyan-500', 
+                nba: 'from-orange-400 to-yellow-500', 
+                tennis: 'from-purple-400 to-pink-500' 
+            };
+
+            // ========== MATCHES TAB ==========
+            if (state.activeTab === 'matches') {
+                // Selected match analysis
+                if (state.selectedMatch) {
+                    if (sport === 'football') {
+                        const m = state.selectedMatch;
+                        const home = m.teams.home.name;
+                        const away = m.teams.away.name;
+                        const analysis = analyzeFootballMatch(home, away);
+                        const dt = formatDateTime(m.fixture.date);
+
+                        content = `
+                            <button onclick="state.selectedMatch=null;render()" class="flex items-center gap-2 text-gray-400 mb-4 hover:text-white">
+                                ← Torna alle partite
+                            </button>
+                            
+                            <div class="glass rounded-2xl p-4 mb-4 glow">
+                                <div class="flex items-center justify-between mb-2">
+                                    <span class="text-xs text-gray-500">${m.league.name}</span>
+                                    <span class="text-xs text-gray-500">${dt.date} • ${dt.time}</span>
+                                </div>
+                                <div class="flex items-center justify-between">
+                                    <div class="flex items-center gap-3">
+                                        ${m.teams.home.logo ? `<img src="${m.teams.home.logo}" class="w-10 h-10"/>` : ''}
+                                        <span class="font-bold text-white">${home}</span>
+                                    </div>
+                                    <span class="text-gray-500 text-sm">vs</span>
+                                    <div class="flex items-center gap-3">
+                                        <span class="font-bold text-white">${away}</span>
+                                        ${m.teams.away.logo ? `<img src="${m.teams.away.logo}" class="w-10 h-10"/>` : ''}
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- GG/NG -->
+                            <div class="glass rounded-xl p-4 mb-3">
+                                <h3 class="font-bold mb-3 flex items-center gap-2">⚽ Goal/Goal</h3>
+                                <div class="grid grid-cols-2 gap-3">
+                                    <div class="bg-black/30 rounded-lg p-3 text-center ${analysis.gg.pick === 'GG' ? 'ring-2 ring-emerald-500' : ''}">
+                                        <p class="font-black text-xl text-white">GG</p>
+                                        <p class="text-xs ${confClass(analysis.gg.pick === 'GG' ? analysis.gg.conf : 100 - analysis.gg.conf)}">${analysis.gg.prob.toFixed(0)}%</p>
+                                        <button onclick="savePick('${home} vs ${away} - GG', ${analysis.gg.pick === 'GG' ? analysis.gg.conf : 100 - analysis.gg.conf}, 'football')" class="mt-2 bg-emerald-500 text-white px-3 py-1 rounded text-xs">💾 Salva</button>
+                                    </div>
+                                    <div class="bg-black/30 rounded-lg p-3 text-center ${analysis.gg.pick === 'NG' ? 'ring-2 ring-emerald-500' : ''}">
+                                        <p class="font-black text-xl text-white">NG</p>
+                                        <p class="text-xs ${confClass(analysis.gg.pick === 'NG' ? analysis.gg.conf : 100 - analysis.gg.conf)}">${(100 - analysis.gg.prob).toFixed(0)}%</p>
+                                        <button onclick="savePick('${home} vs ${away} - NG', ${analysis.gg.pick === 'NG' ? analysis.gg.conf : 100 - analysis.gg.conf}, 'football')" class="mt-2 bg-emerald-500 text-white px-3 py-1 rounded text-xs">💾 Salva</button>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- GOALS -->
+                            <div class="glass rounded-xl p-4 mb-3">
+                                <h3 class="font-bold mb-2 flex items-center gap-2">🥅 Goals <span class="text-xs text-gray-500 font-normal">Exp: ${analysis.goals.exp.toFixed(1)}</span></h3>
+                                <div class="space-y-2">
+                                    ${analysis.goals.lines.map(l => `
+                                        <div class="flex items-center justify-between bg-black/30 rounded-lg p-2">
+                                            <span class="text-sm text-gray-400">${l.pick} ${l.line}</span>
+                                            <div class="flex items-center gap-2">
+                                                <span class="text-sm font-bold ${confClass(l.conf)}">${l.conf.toFixed(0)}%</span>
+                                                <button onclick="savePick('${home} vs ${away} - ${l.pick} ${l.line} Goals', ${l.conf}, 'football')" class="bg-emerald-500/80 text-white px-2 py-1 rounded text-xs">💾</button>
+                                            </div>
+                                        </div>
+                                    `).join('')}
+                                </div>
+                            </div>
+
+                            <!-- CORNERS -->
+                            <div class="glass rounded-xl p-4 mb-3">
+                                <h3 class="font-bold mb-2 flex items-center gap-2">🚩 Corner <span class="text-xs text-gray-500 font-normal">Exp: ${analysis.corners.exp.toFixed(1)}</span></h3>
+                                <div class="space-y-2">
+                                    ${analysis.corners.lines.map(l => `
+                                        <div class="flex items-center justify-between bg-black/30 rounded-lg p-2">
+                                            <span class="text-sm text-gray-400">${l.pick} ${l.line}</span>
+                                            <div class="flex items-center gap-2">
+                                                <span class="text-sm font-bold ${confClass(l.conf)}">${l.conf.toFixed(0)}%</span>
+                                                <button onclick="savePick('${home} vs ${away} - ${l.pick} ${l.line} Corner', ${l.conf}, 'football')" class="bg-emerald-500/80 text-white px-2 py-1 rounded text-xs">💾</button>
+                                            </div>
+                                        </div>
+                                    `).join('')}
+                                </div>
+                            </div>
+
+                            <!-- CARDS -->
+                            <div class="glass rounded-xl p-4">
+                                <h3 class="font-bold mb-2 flex items-center gap-2">🟨 Cartellini <span class="text-xs text-gray-500 font-normal">Exp: ${analysis.cards.exp.toFixed(1)}</span></h3>
+                                <div class="space-y-2">
+                                    ${analysis.cards.lines.map(l => `
+                                        <div class="flex items-center justify-between bg-black/30 rounded-lg p-2">
+                                            <span class="text-sm text-gray-400">${l.pick} ${l.line}</span>
+                                            <div class="flex items-center gap-2">
+                                                <span class="text-sm font-bold ${confClass(l.conf)}">${l.conf.toFixed(0)}%</span>
+                                                <button onclick="savePick('${home} vs ${away} - ${l.pick} ${l.line} Cards', ${l.conf}, 'football')" class="bg-emerald-500/80 text-white px-2 py-1 rounded text-xs">💾</button>
+                                            </div>
+                                        </div>
+                                    `).join('')}
+                                </div>
+                            </div>
+                        `;
+                    } else if (sport === 'nba') {
+                        const m = state.selectedMatch;
+                        const home = m.teams.home.name;
+                        const away = m.teams.away.name;
+                        const analysis = analyzeNBAGame(home, away);
+                        const dt = formatDateTime(m.date);
+                        const homePlayers = getPlayersForTeam(home);
+                        const awayPlayers = getPlayersForTeam(away);
+
+                        content = `
+                            <button onclick="state.selectedMatch=null;render()" class="flex items-center gap-2 text-gray-400 mb-4 hover:text-white">
+                                ← Torna alle partite
+                            </button>
+                            
+                            <div class="glass rounded-2xl p-4 mb-4 glow-orange">
+                                <div class="flex items-center justify-between mb-2">
+                                    <span class="text-xs text-gray-500">NBA</span>
+                                    <span class="text-xs text-gray-500">${dt.date} • ${dt.time}</span>
+                                </div>
+                                <div class="flex items-center justify-between">
+                                    <div class="flex items-center gap-3">
+                                        ${m.teams.home.logo ? `<img src="${m.teams.home.logo}" class="w-10 h-10"/>` : ''}
+                                        <span class="font-bold text-white">${home}</span>
+                                    </div>
+                                    <span class="text-gray-500 text-sm">vs</span>
+                                    <div class="flex items-center gap-3">
+                                        <span class="font-bold text-white">${away}</span>
+                                        ${m.teams.away.logo ? `<img src="${m.teams.away.logo}" class="w-10 h-10"/>` : ''}
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- TOTALS -->
+                            <div class="glass rounded-xl p-4 mb-3">
+                                <h3 class="font-bold mb-2 flex items-center gap-2">🏀 Totale Punti <span class="text-xs text-gray-500 font-normal">Exp: ${analysis.total.exp.toFixed(1)}</span></h3>
+                                <div class="space-y-2">
+                                    ${analysis.total.lines.map(l => `
+                                        <div class="flex items-center justify-between bg-black/30 rounded-lg p-2">
+                                            <span class="text-sm text-gray-400">${l.pick} ${l.line}</span>
+                                            <div class="flex items-center gap-2">
+                                                <span class="text-sm font-bold ${confClass(l.conf)}">${l.conf.toFixed(0)}%</span>
+                                                <button onclick="savePick('${home} vs ${away} - ${l.pick} ${l.line}', ${l.conf}, 'nba')" class="bg-orange-500/80 text-white px-2 py-1 rounded text-xs">💾</button>
+                                            </div>
+                                        </div>
+                                    `).join('')}
+                                </div>
+                            </div>
+
+                            <!-- SPREAD -->
+                            <div class="glass rounded-xl p-4 mb-3">
+                                <h3 class="font-bold mb-2">📊 Spread</h3>
+                                <div class="bg-black/30 rounded-lg p-3 text-center">
+                                    <p class="font-black text-xl text-white">${analysis.spread.pick}</p>
+                                    <p class="text-sm text-gray-400">${analysis.spread.value > 0 ? '-' : '+'}${Math.abs(analysis.spread.value).toFixed(1)}</p>
+                                    <p class="text-xs ${confClass(analysis.spread.conf)}">${analysis.spread.conf.toFixed(0)}%</p>
+                                    <button onclick="savePick('${home} vs ${away} - ${analysis.spread.pick} ${analysis.spread.value > 0 ? '-' : '+'}${Math.abs(analysis.spread.value).toFixed(1)}', ${analysis.spread.conf}, 'nba')" class="mt-2 bg-orange-500 text-white px-3 py-1 rounded text-xs">💾 Salva</button>
+                                </div>
+                            </div>
+
+                            <!-- PLAYER PROPS -->
+                            ${(homePlayers.length > 0 || awayPlayers.length > 0) ? `
+                                <div class="glass rounded-xl p-4">
+                                    <h3 class="font-bold mb-3">👤 Player Props</h3>
+                                    <div class="space-y-2">
+                                        ${[...homePlayers, ...awayPlayers].map(p => `
+                                            <div class="bg-black/30 rounded-lg p-2">
+                                                <p class="font-bold text-white text-sm mb-1">${p.name}</p>
+                                                <div class="flex gap-2 flex-wrap">
+                                                    <button onclick="savePick('${p.name} O ${(p.ppg - 0.5).toFixed(1)} PTS', 62, 'nba')" class="bg-orange-500/60 text-white px-2 py-1 rounded text-xs">O ${(p.ppg - 0.5).toFixed(1)} PTS</button>
+                                                    <button onclick="savePick('${p.name} O ${(p.rpg - 0.5).toFixed(1)} REB', 58, 'nba')" class="bg-orange-500/60 text-white px-2 py-1 rounded text-xs">O ${(p.rpg - 0.5).toFixed(1)} REB</button>
+                                                    <button onclick="savePick('${p.name} O ${(p.apg - 0.5).toFixed(1)} AST', 55, 'nba')" class="bg-orange-500/60 text-white px-2 py-1 rounded text-xs">O ${(p.apg - 0.5).toFixed(1)} AST</button>
+                                                </div>
+                                            </div>
+                                        `).join('')}
+                                    </div>
+                                </div>
+                            ` : ''}
+                        `;
+                    } else if (sport === 'tennis') {
+                        const m = state.selectedMatch;
+                        const p1 = m.players?.home?.name || 'Player 1';
+                        const p2 = m.players?.away?.name || 'Player 2';
+                        const analysis = analyzeTennisMatch(p1, p2);
+
+                        content = `
+                            <button onclick="state.selectedMatch=null;render()" class="flex items-center gap-2 text-gray-400 mb-4 hover:text-white">
+                                ← Torna ai match
+                            </button>
+                            
+                            <div class="glass rounded-2xl p-4 mb-4 glow-purple">
+                                <div class="text-xs text-gray-500 mb-2">${m.league?.name || 'ATP/WTA'}</div>
+                                <div class="flex items-center justify-between">
+                                    <span class="font-bold text-white">${p1}</span>
+                                    <span class="text-gray-500 text-sm">vs</span>
+                                    <span class="font-bold text-white">${p2}</span>
+                                </div>
+                            </div>
+
+                            <!-- WINNER -->
+                            <div class="glass rounded-xl p-4 mb-3">
+                                <h3 class="font-bold mb-3">🏆 Vincente</h3>
+                                <div class="grid grid-cols-2 gap-3">
+                                    <div class="bg-black/30 rounded-lg p-3 text-center ${analysis.winner.player === p1 ? 'ring-2 ring-purple-500' : ''}">
+                                        <p class="font-bold text-white">${p1}</p>
+                                        <p class="text-xs ${confClass(analysis.p1WinProb > 50 ? analysis.winner.conf : 100 - analysis.winner.conf)}">${analysis.p1WinProb.toFixed(0)}%</p>
+                                        <button onclick="savePick('${p1} vs ${p2} - Vince ${p1}', ${analysis.p1WinProb > 50 ? analysis.winner.conf : 100 - analysis.winner.conf}, 'tennis')" class="mt-2 bg-purple-500 text-white px-3 py-1 rounded text-xs">💾</button>
+                                    </div>
+                                    <div class="bg-black/30 rounded-lg p-3 text-center ${analysis.winner.player === p2 ? 'ring-2 ring-purple-500' : ''}">
+                                        <p class="font-bold text-white">${p2}</p>
+                                        <p class="text-xs ${confClass(analysis.p2WinProb > 50 ? analysis.winner.conf : 100 - analysis.winner.conf)}">${analysis.p2WinProb.toFixed(0)}%</p>
+                                        <button onclick="savePick('${p1} vs ${p2} - Vince ${p2}', ${analysis.p2WinProb > 50 ? analysis.winner.conf : 100 - analysis.winner.conf}, 'tennis')" class="mt-2 bg-purple-500 text-white px-3 py-1 rounded text-xs">💾</button>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- GAMES -->
+                            <div class="glass rounded-xl p-4">
+                                <h3 class="font-bold mb-2 flex items-center gap-2">🎾 Total Games <span class="text-xs text-gray-500 font-normal">Exp: ${analysis.games.exp.toFixed(1)}</span></h3>
+                                <div class="space-y-2">
+                                    ${analysis.games.lines.map(l => `
+                                        <div class="flex items-center justify-between bg-black/30 rounded-lg p-2">
+                                            <span class="text-sm text-gray-400">${l.pick} ${l.line}</span>
+                                            <div class="flex items-center gap-2">
+                                                <span class="text-sm font-bold ${confClass(l.conf)}">${l.conf.toFixed(0)}%</span>
+                                                <button onclick="savePick('${p1} vs ${p2} - ${l.pick} ${l.line} Games', ${l.conf}, 'tennis')" class="bg-purple-500/80 text-white px-2 py-1 rounded text-xs">💾</button>
+                                            </div>
+                                        </div>
+                                    `).join('')}
+                                </div>
+                            </div>
+                        `;
+                    }
+                } else {
+                    // Match list
+                    if (sport === 'football') {
+                        content = `
+                            <div class="flex gap-1.5 overflow-x-auto pb-2 mb-3">
+                                ${Object.entries(FOOTBALL_LEAGUES).slice(0, 8).map(([id, l]) => `
+                                    <button onclick="state.selectedLeague=${id};loadMatches()" class="px-2.5 py-1.5 rounded-lg text-xs font-bold whitespace-nowrap ${state.selectedLeague == id ? 'bg-gradient-to-r from-emerald-400 to-cyan-500 text-gray-900' : 'glass text-gray-400'}">
+                                        ${l.flag}
+                                    </button>
+                                `).join('')}
+                                <select onchange="state.selectedLeague=this.value;loadMatches()" class="px-2 py-1 rounded-lg text-xs">
+                                    <option value="">+ Altri</option>
+                                    ${Object.entries(FOOTBALL_LEAGUES).slice(8).map(([id, l]) => `<option value="${id}">${l.flag} ${l.name}</option>`).join('')}
+                                </select>
+                            </div>
+                        `;
+                    }
+
+                    content += `
+                        <div class="flex items-center justify-between mb-3">
+                            <h2 class="font-bold">${sport === 'football' ? '⚽' : sport === 'nba' ? '🏀' : '🎾'} Partite</h2>
+                            <button onclick="loadMatches()" class="glass px-3 py-1.5 rounded-lg text-xs font-bold ${state.loading ? 'opacity-50' : ''}">
+                                ${state.loading ? '⏳ Caricamento...' : '🔄 Carica'}
+                            </button>
+                        </div>
+                    `;
+
+                    if (state.loading) {
+                        content += `<div class="glass rounded-xl p-8 text-center"><div class="w-10 h-10 border-4 border-cyan-400 border-t-transparent rounded-full loader mx-auto"></div></div>`;
+                    } else if (state.error) {
+                        content += `<div class="glass rounded-xl p-6 text-center text-red-400">${state.error}</div>`;
+                    } else if (state.matches.length === 0) {
+                        content += `<div class="glass rounded-xl p-8 text-center text-gray-500">Clicca 🔄 Carica per vedere le partite</div>`;
+                    } else {
+                        content += `<div class="space-y-2">`;
+                        state.matches.forEach((m, i) => {
+                            const dt = formatDateTime(sport === 'football' ? m.fixture?.date : m.date);
+                            let home, away, league;
+                            
+                            if (sport === 'football') {
+                                home = m.teams.home.name;
+                                away = m.teams.away.name;
+                                league = m.league?.name || '';
+                            } else if (sport === 'nba') {
+                                home = m.teams.home.name;
+                                away = m.teams.away.name;
+                                league = 'NBA';
+                            } else {
+                                home = m.players?.home?.name || 'TBD';
+                                away = m.players?.away?.name || 'TBD';
+                                league = m.league?.name || 'Tennis';
+                            }
+
+                            content += `
+                                <div onclick="state.selectedMatch=state.matches[${i}];render()" class="glass rounded-xl p-3 match-card slide-up" style="animation-delay:${i * 30}ms">
+                                    <div class="flex items-center justify-between mb-1">
+                                        <span class="text-[10px] text-gray-500">${league}</span>
+                                        <span class="text-[10px] text-gray-500">${dt.date} • ${dt.time}</span>
+                                    </div>
+                                    <div class="flex items-center justify-between">
+                                        <div class="flex items-center gap-2">
+                                            ${sport === 'football' && m.teams?.home?.logo ? `<img src="${m.teams.home.logo}" class="w-6 h-6"/>` : ''}
+                                            ${sport === 'nba' && m.teams?.home?.logo ? `<img src="${m.teams.home.logo}" class="w-6 h-6"/>` : ''}
+                                            <span class="font-bold text-white text-sm">${home}</span>
+                                        </div>
+                                        <span class="text-gray-500 text-xs">vs</span>
+                                        <div class="flex items-center gap-2">
+                                            <span class="font-bold text-white text-sm">${away}</span>
+                                            ${sport === 'football' && m.teams?.away?.logo ? `<img src="${m.teams.away.logo}" class="w-6 h-6"/>` : ''}
+                                            ${sport === 'nba' && m.teams?.away?.logo ? `<img src="${m.teams.away.logo}" class="w-6 h-6"/>` : ''}
+                                        </div>
+                                    </div>
+                                    <div class="text-right mt-2">
+                                        <span class="text-xs text-cyan-400">Clicca per analisi →</span>
+                                    </div>
+                                </div>
+                            `;
+                        });
+                        content += `</div>`;
+                    }
+                }
+            }
+
+            // ========== STATS TAB ==========
+            if (state.activeTab === 'stats') {
+                const stats = getStats();
+                content = `
+                    <div class="glass rounded-xl p-4 mb-4 glow">
+                        <div class="flex items-center justify-between mb-3">
+                            <h3 class="font-bold">📊 Statistiche</h3>
+                            <span class="text-xs ${state.syncStatus === 'synced' ? 'text-emerald-400' : 'text-gray-500'}">
+                                ${state.syncStatus === 'synced' ? '☁️ Sincronizzato' : '💾 Locale'}
+                            </span>
+                        </div>
+                        <div class="grid grid-cols-4 gap-2 text-center">
+                            <div class="bg-white/5 rounded-lg p-3">
+                                <p class="text-2xl font-black text-white">${stats.total}</p>
+                                <p class="text-[10px] text-gray-500">Totali</p>
+                            </div>
+                            <div class="bg-emerald-500/20 rounded-lg p-3">
+                                <p class="text-2xl font-black text-emerald-400">${stats.won}</p>
+                                <p class="text-[10px] text-gray-500">Vinti</p>
+                            </div>
+                            <div class="bg-red-500/20 rounded-lg p-3">
+                                <p class="text-2xl font-black text-red-400">${stats.lost}</p>
+                                <p class="text-[10px] text-gray-500">Persi</p>
+                            </div>
+                            <div class="bg-cyan-500/20 rounded-lg p-3">
+                                <p class="text-2xl font-black text-cyan-400">${stats.hitRate}%</p>
+                                <p class="text-[10px] text-gray-500">Hit Rate</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <h3 class="font-bold mb-3">📝 Storico Pick</h3>
+                    <div class="space-y-2">
+                        ${state.history.length === 0 ? '<div class="glass rounded-xl p-6 text-center text-gray-500">Nessun pick salvato</div>' : ''}
+                        ${state.history.sort((a,b) => b.id - a.id).slice(0, 50).map(e => {
+                            const icon = e.sport === 'nba' ? '🏀' : e.sport === 'tennis' ? '🎾' : '⚽';
+                            const bgClass = e.result === 'won' ? 'bg-emerald-500/10 border-emerald-500/30' : e.result === 'lost' ? 'bg-red-500/10 border-red-500/30' : '';
+                            return `
+                                <div class="glass rounded-lg p-3 border ${bgClass}">
+                                    <div class="flex items-center justify-between">
+                                        <div class="flex items-center gap-2 flex-1 min-w-0">
+                                            <span>${icon}</span>
+                                            <div class="min-w-0">
+                                                <p class="text-sm text-white truncate">${e.description}</p>
+                                                <p class="text-[10px] text-gray-500">${e.conf}% • ${new Date(e.date).toLocaleDateString('it-IT')}</p>
+                                            </div>
+                                        </div>
+                                        ${e.result === null ? `
+                                            <div class="flex gap-1 ml-2">
+                                                <button onclick="updateResult(${e.id},'won')" class="bg-emerald-500 hover:bg-emerald-600 text-white px-2.5 py-1.5 rounded text-xs font-bold">✓</button>
+                                                <button onclick="updateResult(${e.id},'lost')" class="bg-red-500 hover:bg-red-600 text-white px-2.5 py-1.5 rounded text-xs font-bold">✗</button>
+                                            </div>
+                                        ` : `<span class="text-xl ml-2">${e.result === 'won' ? '✅' : '❌'}</span>`}
+                                    </div>
+                                </div>
+                            `;
+                        }).join('')}
+                    </div>
+
+                    <button onclick="signOut()" class="w-full mt-6 py-3 glass rounded-xl text-red-400 text-sm font-medium">🚪 Logout</button>
+                `;
+            }
+
+            // ========== MAIN LAYOUT ==========
+            root.innerHTML = `
+                <div class="max-w-lg mx-auto min-h-screen flex flex-col">
+                    <header class="glass sticky top-0 z-50 border-b border-white/5">
+                        <div class="px-4 py-3 flex items-center justify-between">
+                            <div class="flex items-center gap-2">
+                                <div class="w-9 h-9 rounded-xl bg-gradient-to-br ${sportColors[sport]} flex items-center justify-center">
+                                    <span class="text-lg">${sport === 'football' ? '⚽' : sport === 'nba' ? '🏀' : '🎾'}</span>
+                                </div>
+                                <div>
+                                    <h1 class="font-black text-white text-sm">BOMBA BET</h1>
+                                    <p class="text-[10px] text-gray-500">${state.user?.displayName || 'User'}</p>
+                                </div>
+                            </div>
+                            
+                            <div class="flex gap-1 glass rounded-xl p-1">
+                                <button onclick="state.activeSport='football';state.activeTab='matches';state.selectedMatch=null;state.matches=[];render()" class="px-2.5 py-1.5 rounded-lg text-sm ${sport === 'football' ? 'bg-gradient-to-r from-emerald-400 to-cyan-500 text-gray-900 font-bold' : 'text-gray-500'}">⚽</button>
+                                <button onclick="state.activeSport='nba';state.activeTab='matches';state.selectedMatch=null;state.matches=[];render()" class="px-2.5 py-1.5 rounded-lg text-sm ${sport === 'nba' ? 'bg-gradient-to-r from-orange-400 to-yellow-500 text-gray-900 font-bold' : 'text-gray-500'}">🏀</button>
+                                <button onclick="state.activeSport='tennis';state.activeTab='matches';state.selectedMatch=null;state.matches=[];render()" class="px-2.5 py-1.5 rounded-lg text-sm ${sport === 'tennis' ? 'bg-gradient-to-r from-purple-400 to-pink-500 text-white font-bold' : 'text-gray-500'}">🎾</button>
+                            </div>
+                        </div>
+                        
+                        <div class="flex px-3 pb-2 gap-2">
+                            <button onclick="state.activeTab='matches';state.selectedMatch=null;render()" class="flex-1 py-2 rounded-lg text-xs font-bold ${state.activeTab === 'matches' ? 'bg-gradient-to-r ' + sportColors[sport] + ' text-gray-900' : 'glass text-gray-500'}">📅 Partite</button>
+                            <button onclick="state.activeTab='stats';render()" class="flex-1 py-2 rounded-lg text-xs font-bold ${state.activeTab === 'stats' ? 'bg-gradient-to-r ' + sportColors[sport] + ' text-gray-900' : 'glass text-gray-500'}">📊 Stats</button>
+                        </div>
+                    </header>
+                    
+                    <main class="flex-1 p-4 pb-6">${content}</main>
+                </div>
+            `;
+        }
+
+        // INIT
+        setupAuthListener();
+    </script>
+</body>
+</html>
