@@ -51,7 +51,7 @@ auth.onAuthStateChanged(user=>{
   state.user = user;
   render();
   if(user){
-    fetchFootballMatches(); // ✅ già presente e funzionante
+    fetchFootballMatches();
   }
 });
 
@@ -90,13 +90,12 @@ https://v3.football.api-sports.io/fixtures
     });
 
     const data = await res.json();
-    console.log("Fixtures ricevute:", data.response?.length);
 
     state.footballMatches = (data.response || [])
       .filter(m =>
-        ['NS','TBD','LIVE'].includes(m.fixture.status.short)
+        ['NS','TBD','LIVE','PST'].includes(m.fixture.status.short)
       )
-      .sort((a,b) =>
+      .sort((a,b)=>
         new Date(a.fixture.date) - new Date(b.fixture.date)
       )
       .slice(0,20);
@@ -155,7 +154,7 @@ function render(){
               ${m.teams.home.name} vs ${m.teams.away.name}
             </p>
             <p class="text-xs text-gray-400">
-              ${d.toLocaleDateString()} 
+              ${d.toLocaleDateString()}
               ${d.toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'})}
             </p>
           </div>`;
