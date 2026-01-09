@@ -13,7 +13,9 @@
 
 <style>
 body{background:#0a0a0f;color:#e4e4e7;font-family:Inter,sans-serif}
-.glass{background:rgba(255,255,255,.05);backdrop-filter:blur(12px);border:1px solid rgba(255,255,255,.08)}
+.glass{background:rgba(255,255,255,.04);backdrop-filter:blur(10px);border:1px solid rgba(255,255,255,.08)}
+.loader{animation:spin 1s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
 </style>
 </head>
 
@@ -33,24 +35,23 @@ const auth = firebase.auth();
 const db   = firebase.database();
 
 // ================= API =================
-const API_KEY = "e6b4654b35e54995aeb2834ae3f81bcb";
+const FOOTBALL_API_KEY = "e6b4654b35e54995aeb2834ae3f81bcb";
 const PROXY = url => `https://corsproxy.io/?${encodeURIComponent(url)}`;
 
 // ================= STATE =================
 let state = {
   user:null,
-  sport:'football',
-  football:[],
-  basketball:[]
+  loading:false,
+  selectedLeague:135,
+  footballMatches:[]
 };
 
 // ================= AUTH =================
 auth.onAuthStateChanged(user=>{
-  state.user=user;
+  state.user = user;
   render();
   if(user){
-    fetchFootball();
-    fetchBasketball();
+    fetchFootballMatches(); // ✅ già presente e funzionante
   }
 });
 
@@ -61,55 +62,51 @@ function logout(){
   auth.signOut();
 }
 
-// ================= DATE UTILS =================
-function today(){
-  return new Date().toISOString().split("T")[0];
-}
-function plusDays(d){
-  const x=new Date();x.setDate(x.getDate()+d);
+// ================= UTILS =================
+function getDatePlusDays(d){
+  const x=new Date();
+  x.setDate(x.getDate()+d);
   return x.toISOString().split("T")[0];
 }
 
-// ================= FOOTBALL (REALI) =================
-async function fetchFootball(){
+// ================= FETCH (RIPARATO) =================
+async function fetchFootballMatches(){
+  state.loading=true;
+  render();
+
+  const today = new Date().toISOString().split("T")[0];
+
   const url = `
 https://v3.football.api-sports.io/fixtures
-?season=2025
-&from=${today()}
-&to=${plusDays(7)}
+?league=${state.selectedLeague}
+&season=2025
+&from=${today}
+&to=${getDatePlusDays(7)}
 `.replace(/\s+/g,'');
 
-  const r = await fetch(PROXY(url),{
-    headers:{'x-apisports-key':API_KEY}
-  });
-  const j = await r.json();
+  try{
+    const res = await fetch(PROXY(url),{
+      headers:{'x-apisports-key':FOOTBALL_API_KEY}
+    });
 
-  state.football = (j.response||[])
-    .filter(m => ['NS','LIVE','TBD'].includes(m.fixture.status.short))
-    .sort((a,b)=>new Date(a.fixture.date)-new Date(b.fixture.date))
-    .slice(0,20);
+    const data = await res.json();
+    console.log("Fixtures ricevute:", data.response?.length);
 
-  render();
-}
+    state.footballMatches = (data.response || [])
+      .filter(m =>
+        ['NS','TBD','LIVE'].includes(m.fixture.status.short)
+      )
+      .sort((a,b) =>
+        new Date(a.fixture.date) - new Date(b.fixture.date)
+      )
+      .slice(0,20);
 
-// ================= BASKET (REALI) =================
-async function fetchBasketball(){
-  const url = `
-https://v3.basketball.api-sports.io/games
-?from=${today()}
-&to=${plusDays(7)}
-`.replace(/\s+/g,'');
+  }catch(e){
+    console.error("API ERROR",e);
+    state.footballMatches=[];
+  }
 
-  const r = await fetch(PROXY(url),{
-    headers:{'x-apisports-key':API_KEY}
-  });
-  const j = await r.json();
-
-  state.basketball = (j.response||[])
-    .filter(g => ['NS','LIVE'].includes(g.status.short))
-    .sort((a,b)=>new Date(a.date)-new Date(b.date))
-    .slice(0,20);
-
+  state.loading=false;
   render();
 }
 
@@ -119,50 +116,52 @@ function render(){
 
   if(!state.user){
     root.innerHTML=`
-    <div class="min-h-screen flex items-center justify-center">
-      <button onclick="login()" class="glass px-6 py-4 rounded-xl font-bold">
-        🔐 Login Google
-      </button>
-    </div>`;
+      <div class="min-h-screen flex items-center justify-center">
+        <button onclick="login()" class="glass px-6 py-4 rounded-xl font-bold">
+          🔐 Login con Google
+        </button>
+      </div>`;
     return;
   }
-
-  const list = state[state.sport];
 
   root.innerHTML=`
   <div class="max-w-lg mx-auto p-3 space-y-3">
 
     <div class="flex justify-between items-center">
-      <h1 class="font-black">🎯 BOMBA BET</h1>
+      <h1 class="font-black text-xl">⚽ BOMBA BET</h1>
       <button onclick="logout()">🚪</button>
     </div>
 
-    <div class="flex gap-1">
-      <button onclick="state.sport='football';render()"
-        class="flex-1 py-2 rounded ${state.sport==='football'?'bg-white/20':'glass'}">⚽</button>
-      <button onclick="state.sport='basketball';render()"
-        class="flex-1 py-2 rounded ${state.sport==='basketball'?'bg-white/20':'glass'}">🏀</button>
-    </div>
+    <button onclick="fetchFootballMatches()"
+      class="glass px-3 py-2 rounded-lg w-full">
+      ${state.loading?'⏳ Caricamento':'🔄 Ricarica partite'}
+    </button>
 
     <div class="space-y-2">
-      ${(!list||list.length===0)
-        ? `<div class="glass p-4 text-center text-gray-400">Nessuna partita</div>`
-        : list.map(m=>{
-            const a = state.sport==='football'?m.teams.home.name:m.teams.home.name;
-            const b = state.sport==='football'?m.teams.away.name:m.teams.away.name;
-            const d = state.sport==='football'?m.fixture.date:m.date;
-            const x = new Date(d);
-            return `
-            <div class="glass p-3 rounded-lg">
-              <p class="font-bold text-sm">${a} vs ${b}</p>
-              <p class="text-xs text-gray-400">
-                ${x.toLocaleDateString()} ${x.toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'})}
-              </p>
-            </div>`;
-          }).join('')
+      ${
+        state.footballMatches.length===0 && !state.loading
+        ? `<div class="glass p-4 text-center text-gray-400">
+            Nessuna partita trovata
+           </div>`
+        : ''
+      }
+
+      ${
+        state.footballMatches.map(m=>{
+          const d=new Date(m.fixture.date);
+          return `
+          <div class="glass p-3 rounded-lg">
+            <p class="font-bold text-sm">
+              ${m.teams.home.name} vs ${m.teams.away.name}
+            </p>
+            <p class="text-xs text-gray-400">
+              ${d.toLocaleDateString()} 
+              ${d.toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'})}
+            </p>
+          </div>`;
+        }).join('')
       }
     </div>
-
   </div>`;
 }
 </script>
