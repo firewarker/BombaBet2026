@@ -1,1011 +1,639 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="it">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>🎯 BOMBA BET | Football • NBA • Tennis</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
-    
-    <!-- FIREBASE SDK -->
-    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js"></script>
-    
-    <style>
-        * { font-family: 'Inter', sans-serif; }
-        body { background: #0a0a0f; color: #e4e4e7; min-height: 100vh; }
-        .glass { background: rgba(255,255,255,0.03); backdrop-filter: blur(10px); border: 1px solid rgba(255,255,255,0.08); }
-        .glow { box-shadow: 0 0 30px rgba(0,212,170,0.15); }
-        .glow-orange { box-shadow: 0 0 30px rgba(249,115,22,0.15); }
-        .glow-purple { box-shadow: 0 0 30px rgba(168,85,247,0.15); }
-        .gradient-text { background: linear-gradient(135deg, #00d4aa, #0ea5e9); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
-        .loader { animation: spin 1s linear infinite; }
-        @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
-        .slide-up { animation: slideUp 0.3s ease-out forwards; opacity: 0; }
-        @keyframes slideUp { from { transform: translateY(20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
-        select, input { background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); color: white; }
-        ::-webkit-scrollbar { width: 4px; height: 4px; }
-        ::-webkit-scrollbar-track { background: transparent; }
-        ::-webkit-scrollbar-thumb { background: rgba(0,212,170,0.5); border-radius: 2px; }
-        .match-card:hover { background: rgba(255,255,255,0.06); cursor: pointer; }
-        .conf-high { color: #00d4aa; }
-        .conf-mid { color: #f59e0b; }
-        .conf-low { color: #ef4444; }
-    </style>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>BOMBA BET - SportAPI7 Edition</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    body { background:#0a0a0f; color:#e4e4e7; font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto; }
+    .glass { background: rgba(255,255,255,0.03); backdrop-filter: blur(10px); border: 1px solid rgba(255,255,255,0.08); }
+    .loader { animation: spin 1s linear infinite; }
+    @keyframes spin { from { transform: rotate(0deg);} to { transform: rotate(360deg);} }
+    .conf-high { color:#00d4aa; } .conf-mid{ color:#f59e0b; } .conf-low { color:#ef4444; }
+    .match-card:hover { background: rgba(255,255,255,0.06); cursor:pointer; }
+    button:disabled { opacity: .55; cursor: not-allowed; }
+  </style>
 </head>
 <body>
-    <div id="root"></div>
-
-    <script>
-        // ============================================================
-        // 🎯 BOMBA BET V9 - RAPIDAPI EDITION
-        // ============================================================
-        // ✅ RapidAPI - Funziona al 100%
-        // ✅ Firebase Cloud Sync  
-        // ✅ Calcio: GG, Goals, Corner, Cards
-        // ✅ NBA: Totali, Player Props
-        // ✅ Tennis: Vincente, Games
-        // ============================================================
-
-        // 🔥 FIREBASE CONFIG - NON MODIFICARE
-        const firebaseConfig = {
-            apiKey: "AIzaSyAzXGyOUDeok9zHZ3Lrqplb9I4u2xxGsPY",
-            authDomain: "bombabet26.firebaseapp.com",
-            databaseURL: "https://bombabet26-default-rtdb.europe-west1.firebasedatabase.app",
-            projectId: "bombabet26",
-            storageBucket: "bombabet26.firebasestorage.app",
-            messagingSenderId: "765939756236",
-            appId: "1:765939756236:web:e071a398659e1171fc2669"
-        };
-
-        // 🔑 RAPIDAPI KEY - LA TUA
-        const RAPIDAPI_KEY = "f5cd8f40a3msh8b0c259403bcc6dp169c83jsn1d5284779ac4";
-
-        // API Hosts
-        const API_HOSTS = {
-            football: "api-football-v1.p.rapidapi.com",
-            basketball: "api-basketball.p.rapidapi.com",
-            tennis: "api-tennis.p.rapidapi.com"
-        };
-
-        // Initialize Firebase
-        let auth, database;
-        try {
-            firebase.initializeApp(firebaseConfig);
-            auth = firebase.auth();
-            database = firebase.database();
-        } catch (e) { console.error('Firebase init error:', e); }
-
-        // ============================================================
-        // 🏆 CAMPIONATI
-        // ============================================================
-        
-        const FOOTBALL_LEAGUES = {
-            135: { name: "Serie A", flag: "🇮🇹" },
-            39: { name: "Premier League", flag: "🏴󠁧󠁢󠁥󠁮󠁧󠁿" },
-            140: { name: "La Liga", flag: "🇪🇸" },
-            78: { name: "Bundesliga", flag: "🇩🇪" },
-            61: { name: "Ligue 1", flag: "🇫🇷" },
-            136: { name: "Serie B", flag: "🇮🇹" },
-            40: { name: "Championship", flag: "🏴󠁧󠁢󠁥󠁮󠁧󠁿" },
-            88: { name: "Eredivisie", flag: "🇳🇱" },
-            94: { name: "Primeira Liga", flag: "🇵🇹" },
-            144: { name: "Jupiler Pro", flag: "🇧🇪" },
-            203: { name: "Super Lig", flag: "🇹🇷" },
-            2: { name: "Champions League", flag: "🏆" },
-            3: { name: "Europa League", flag: "🏆" },
-            71: { name: "Brasileirão", flag: "🇧🇷" },
-            128: { name: "Liga Argentina", flag: "🇦🇷" }
-        };
-
-        // Team statistics database
-        const TEAM_STATS = {
-            'Juventus': { corners: 5.8, cornersAg: 4.2, cards: 2.1, cardsAg: 1.8, gf: 1.8, ga: 0.9, ggRate: 48 },
-            'Inter': { corners: 6.2, cornersAg: 3.8, cards: 1.9, cardsAg: 2.0, gf: 2.4, ga: 0.8, ggRate: 52 },
-            'Milan': { corners: 5.5, cornersAg: 4.5, cards: 2.3, cardsAg: 1.9, gf: 2.1, ga: 1.1, ggRate: 58 },
-            'AC Milan': { corners: 5.5, cornersAg: 4.5, cards: 2.3, cardsAg: 1.9, gf: 2.1, ga: 1.1, ggRate: 58 },
-            'Napoli': { corners: 5.9, cornersAg: 4.0, cards: 2.0, cardsAg: 2.1, gf: 2.2, ga: 1.0, ggRate: 55 },
-            'Roma': { corners: 5.3, cornersAg: 4.8, cards: 2.4, cardsAg: 2.0, gf: 1.6, ga: 1.2, ggRate: 52 },
-            'AS Roma': { corners: 5.3, cornersAg: 4.8, cards: 2.4, cardsAg: 2.0, gf: 1.6, ga: 1.2, ggRate: 52 },
-            'Lazio': { corners: 5.4, cornersAg: 4.6, cards: 2.2, cardsAg: 2.2, gf: 1.9, ga: 1.3, ggRate: 60 },
-            'Atalanta': { corners: 6.0, cornersAg: 4.1, cards: 2.1, cardsAg: 1.8, gf: 2.5, ga: 1.2, ggRate: 65 },
-            'Fiorentina': { corners: 5.2, cornersAg: 4.9, cards: 2.3, cardsAg: 2.1, gf: 1.7, ga: 1.1, ggRate: 55 },
-            'Bologna': { corners: 5.1, cornersAg: 5.0, cards: 2.0, cardsAg: 2.3, gf: 1.5, ga: 1.2, ggRate: 50 },
-            'Torino': { corners: 4.8, cornersAg: 5.2, cards: 2.4, cardsAg: 2.0, gf: 1.3, ga: 1.4, ggRate: 52 },
-            'Monza': { corners: 4.5, cornersAg: 5.5, cards: 2.2, cardsAg: 2.1, gf: 1.1, ga: 1.5, ggRate: 48 },
-            'Udinese': { corners: 4.6, cornersAg: 5.3, cards: 2.3, cardsAg: 2.0, gf: 1.2, ga: 1.4, ggRate: 45 },
-            'Genoa': { corners: 4.4, cornersAg: 5.6, cards: 2.5, cardsAg: 1.9, gf: 1.0, ga: 1.6, ggRate: 42 },
-            'Cagliari': { corners: 4.3, cornersAg: 5.7, cards: 2.4, cardsAg: 2.2, gf: 1.1, ga: 1.7, ggRate: 48 },
-            'Empoli': { corners: 4.2, cornersAg: 5.8, cards: 2.1, cardsAg: 2.3, gf: 0.9, ga: 1.4, ggRate: 40 },
-            'Parma': { corners: 4.5, cornersAg: 5.5, cards: 2.2, cardsAg: 2.1, gf: 1.2, ga: 1.6, ggRate: 50 },
-            'Verona': { corners: 4.4, cornersAg: 5.6, cards: 2.3, cardsAg: 2.0, gf: 1.1, ga: 1.8, ggRate: 52 },
-            'Hellas Verona': { corners: 4.4, cornersAg: 5.6, cards: 2.3, cardsAg: 2.0, gf: 1.1, ga: 1.8, ggRate: 52 },
-            'Como': { corners: 4.3, cornersAg: 5.7, cards: 2.0, cardsAg: 2.2, gf: 1.0, ga: 1.5, ggRate: 45 },
-            'Lecce': { corners: 4.1, cornersAg: 5.9, cards: 2.4, cardsAg: 2.1, gf: 0.8, ga: 1.6, ggRate: 38 },
-            'Venezia': { corners: 4.0, cornersAg: 6.0, cards: 2.2, cardsAg: 2.3, gf: 0.9, ga: 1.9, ggRate: 42 },
-            'Manchester City': { corners: 7.2, cornersAg: 3.1, cards: 1.5, cardsAg: 1.8, gf: 2.8, ga: 0.7, ggRate: 48 },
-            'Arsenal': { corners: 6.5, cornersAg: 3.8, cards: 1.7, cardsAg: 1.9, gf: 2.4, ga: 0.8, ggRate: 52 },
-            'Liverpool': { corners: 6.8, cornersAg: 3.5, cards: 1.6, cardsAg: 2.0, gf: 2.6, ga: 0.9, ggRate: 58 },
-            'Chelsea': { corners: 5.8, cornersAg: 4.2, cards: 1.9, cardsAg: 1.8, gf: 1.9, ga: 1.1, ggRate: 55 },
-            'Manchester United': { corners: 5.5, cornersAg: 4.8, cards: 2.0, cardsAg: 1.7, gf: 1.6, ga: 1.3, ggRate: 58 },
-            'Tottenham': { corners: 5.9, cornersAg: 4.5, cards: 1.8, cardsAg: 2.1, gf: 2.1, ga: 1.2, ggRate: 62 },
-            'Newcastle': { corners: 5.6, cornersAg: 4.6, cards: 1.9, cardsAg: 1.9, gf: 1.8, ga: 1.0, ggRate: 52 },
-            'Aston Villa': { corners: 5.4, cornersAg: 4.8, cards: 2.0, cardsAg: 1.8, gf: 2.0, ga: 1.1, ggRate: 58 },
-            'Brighton': { corners: 5.3, cornersAg: 4.7, cards: 1.8, cardsAg: 2.0, gf: 1.7, ga: 1.2, ggRate: 55 },
-            'West Ham': { corners: 5.0, cornersAg: 5.0, cards: 2.1, cardsAg: 1.9, gf: 1.5, ga: 1.4, ggRate: 52 },
-            'Real Madrid': { corners: 6.8, cornersAg: 3.2, cards: 2.0, cardsAg: 2.4, gf: 2.5, ga: 0.8, ggRate: 50 },
-            'Barcelona': { corners: 7.0, cornersAg: 3.0, cards: 1.8, cardsAg: 2.5, gf: 2.7, ga: 1.0, ggRate: 55 },
-            'Atletico Madrid': { corners: 5.2, cornersAg: 4.0, cards: 2.8, cardsAg: 2.2, gf: 1.8, ga: 0.7, ggRate: 42 },
-            'Bayern Munich': { corners: 7.5, cornersAg: 2.8, cards: 1.4, cardsAg: 1.9, gf: 3.0, ga: 1.0, ggRate: 62 },
-            'Bayern': { corners: 7.5, cornersAg: 2.8, cards: 1.4, cardsAg: 1.9, gf: 3.0, ga: 1.0, ggRate: 62 },
-            'Bayer Leverkusen': { corners: 6.8, cornersAg: 3.2, cards: 1.6, cardsAg: 1.8, gf: 2.6, ga: 0.8, ggRate: 55 },
-            'Leverkusen': { corners: 6.8, cornersAg: 3.2, cards: 1.6, cardsAg: 1.8, gf: 2.6, ga: 0.8, ggRate: 55 },
-            'Borussia Dortmund': { corners: 6.2, cornersAg: 4.0, cards: 1.7, cardsAg: 1.7, gf: 2.3, ga: 1.3, ggRate: 65 },
-            'Dortmund': { corners: 6.2, cornersAg: 4.0, cards: 1.7, cardsAg: 1.7, gf: 2.3, ga: 1.3, ggRate: 65 },
-            'PSG': { corners: 7.8, cornersAg: 2.5, cards: 1.6, cardsAg: 2.2, gf: 2.8, ga: 0.7, ggRate: 45 },
-            'Paris Saint Germain': { corners: 7.8, cornersAg: 2.5, cards: 1.6, cardsAg: 2.2, gf: 2.8, ga: 0.7, ggRate: 45 },
-            'Monaco': { corners: 5.8, cornersAg: 4.2, cards: 1.9, cardsAg: 2.0, gf: 2.2, ga: 1.1, ggRate: 58 },
-            'Marseille': { corners: 5.5, cornersAg: 4.6, cards: 2.2, cardsAg: 2.1, gf: 1.8, ga: 1.2, ggRate: 55 },
-            'Lyon': { corners: 5.6, cornersAg: 4.5, cards: 2.0, cardsAg: 2.2, gf: 1.7, ga: 1.3, ggRate: 58 },
-            'Ajax': { corners: 6.5, cornersAg: 3.5, cards: 1.8, cardsAg: 2.0, gf: 2.5, ga: 1.2, ggRate: 65 },
-            'PSV': { corners: 6.8, cornersAg: 3.2, cards: 1.6, cardsAg: 1.8, gf: 2.8, ga: 1.0, ggRate: 62 },
-            'PSV Eindhoven': { corners: 6.8, cornersAg: 3.2, cards: 1.6, cardsAg: 1.8, gf: 2.8, ga: 1.0, ggRate: 62 },
-            'Benfica': { corners: 6.5, cornersAg: 3.5, cards: 1.9, cardsAg: 2.1, gf: 2.4, ga: 1.0, ggRate: 58 },
-            'Porto': { corners: 6.2, cornersAg: 3.8, cards: 2.1, cardsAg: 2.0, gf: 2.2, ga: 0.9, ggRate: 52 },
-            'Sporting CP': { corners: 6.0, cornersAg: 4.0, cards: 1.8, cardsAg: 2.2, gf: 2.3, ga: 1.1, ggRate: 55 },
-            'Sporting': { corners: 6.0, cornersAg: 4.0, cards: 1.8, cardsAg: 2.2, gf: 2.3, ga: 1.1, ggRate: 55 }
-        };
-
-        // NBA Teams
-        const NBA_TEAMS = {
-            'Los Angeles Lakers': { abbr: 'LAL', avgPts: 115.2, avgAllow: 113.8 },
-            'Lakers': { abbr: 'LAL', avgPts: 115.2, avgAllow: 113.8 },
-            'Boston Celtics': { abbr: 'BOS', avgPts: 120.5, avgAllow: 108.2 },
-            'Celtics': { abbr: 'BOS', avgPts: 120.5, avgAllow: 108.2 },
-            'Golden State Warriors': { abbr: 'GSW', avgPts: 112.8, avgAllow: 110.5 },
-            'Warriors': { abbr: 'GSW', avgPts: 112.8, avgAllow: 110.5 },
-            'Denver Nuggets': { abbr: 'DEN', avgPts: 116.5, avgAllow: 109.8 },
-            'Nuggets': { abbr: 'DEN', avgPts: 116.5, avgAllow: 109.8 },
-            'Milwaukee Bucks': { abbr: 'MIL', avgPts: 118.2, avgAllow: 112.5 },
-            'Bucks': { abbr: 'MIL', avgPts: 118.2, avgAllow: 112.5 },
-            'Miami Heat': { abbr: 'MIA', avgPts: 110.2, avgAllow: 108.5 },
-            'Heat': { abbr: 'MIA', avgPts: 110.2, avgAllow: 108.5 },
-            'Dallas Mavericks': { abbr: 'DAL', avgPts: 117.8, avgAllow: 114.2 },
-            'Mavericks': { abbr: 'DAL', avgPts: 117.8, avgAllow: 114.2 },
-            'Phoenix Suns': { abbr: 'PHX', avgPts: 113.5, avgAllow: 112.8 },
-            'Suns': { abbr: 'PHX', avgPts: 113.5, avgAllow: 112.8 },
-            'Cleveland Cavaliers': { abbr: 'CLE', avgPts: 118.5, avgAllow: 107.2 },
-            'Cavaliers': { abbr: 'CLE', avgPts: 118.5, avgAllow: 107.2 },
-            'Oklahoma City Thunder': { abbr: 'OKC', avgPts: 119.2, avgAllow: 108.8 },
-            'Thunder': { abbr: 'OKC', avgPts: 119.2, avgAllow: 108.8 },
-            'New York Knicks': { abbr: 'NYK', avgPts: 112.5, avgAllow: 110.2 },
-            'Knicks': { abbr: 'NYK', avgPts: 112.5, avgAllow: 110.2 },
-            'Philadelphia 76ers': { abbr: 'PHI', avgPts: 111.8, avgAllow: 109.5 },
-            '76ers': { abbr: 'PHI', avgPts: 111.8, avgAllow: 109.5 },
-            'Minnesota Timberwolves': { abbr: 'MIN', avgPts: 112.8, avgAllow: 106.5 },
-            'Timberwolves': { abbr: 'MIN', avgPts: 112.8, avgAllow: 106.5 },
-            'Sacramento Kings': { abbr: 'SAC', avgPts: 114.5, avgAllow: 113.2 },
-            'Kings': { abbr: 'SAC', avgPts: 114.5, avgAllow: 113.2 },
-            'LA Clippers': { abbr: 'LAC', avgPts: 109.8, avgAllow: 110.5 },
-            'Clippers': { abbr: 'LAC', avgPts: 109.8, avgAllow: 110.5 },
-            'Indiana Pacers': { abbr: 'IND', avgPts: 118.8, avgAllow: 116.5 },
-            'Pacers': { abbr: 'IND', avgPts: 118.8, avgAllow: 116.5 },
-            'Memphis Grizzlies': { abbr: 'MEM', avgPts: 110.5, avgAllow: 109.8 },
-            'Grizzlies': { abbr: 'MEM', avgPts: 110.5, avgAllow: 109.8 },
-            'New Orleans Pelicans': { abbr: 'NOP', avgPts: 110.5, avgAllow: 112.8 },
-            'Pelicans': { abbr: 'NOP', avgPts: 110.5, avgAllow: 112.8 },
-            'Atlanta Hawks': { abbr: 'ATL', avgPts: 116.5, avgAllow: 118.2 },
-            'Hawks': { abbr: 'ATL', avgPts: 116.5, avgAllow: 118.2 },
-            'Chicago Bulls': { abbr: 'CHI', avgPts: 109.8, avgAllow: 112.5 },
-            'Bulls': { abbr: 'CHI', avgPts: 109.8, avgAllow: 112.5 },
-            'Houston Rockets': { abbr: 'HOU', avgPts: 110.2, avgAllow: 108.5 },
-            'Rockets': { abbr: 'HOU', avgPts: 110.2, avgAllow: 108.5 },
-            'Orlando Magic': { abbr: 'ORL', avgPts: 108.5, avgAllow: 105.2 },
-            'Magic': { abbr: 'ORL', avgPts: 108.5, avgAllow: 105.2 },
-            'San Antonio Spurs': { abbr: 'SAS', avgPts: 110.8, avgAllow: 116.5 },
-            'Spurs': { abbr: 'SAS', avgPts: 110.8, avgAllow: 116.5 },
-            'Brooklyn Nets': { abbr: 'BKN', avgPts: 108.2, avgAllow: 115.8 },
-            'Nets': { abbr: 'BKN', avgPts: 108.2, avgAllow: 115.8 },
-            'Toronto Raptors': { abbr: 'TOR', avgPts: 107.5, avgAllow: 114.2 },
-            'Raptors': { abbr: 'TOR', avgPts: 107.5, avgAllow: 114.2 },
-            'Portland Trail Blazers': { abbr: 'POR', avgPts: 106.2, avgAllow: 115.8 },
-            'Trail Blazers': { abbr: 'POR', avgPts: 106.2, avgAllow: 115.8 },
-            'Utah Jazz': { abbr: 'UTA', avgPts: 112.5, avgAllow: 118.2 },
-            'Jazz': { abbr: 'UTA', avgPts: 112.5, avgAllow: 118.2 },
-            'Detroit Pistons': { abbr: 'DET', avgPts: 105.8, avgAllow: 116.5 },
-            'Pistons': { abbr: 'DET', avgPts: 105.8, avgAllow: 116.5 },
-            'Charlotte Hornets': { abbr: 'CHA', avgPts: 106.5, avgAllow: 117.2 },
-            'Hornets': { abbr: 'CHA', avgPts: 106.5, avgAllow: 117.2 },
-            'Washington Wizards': { abbr: 'WAS', avgPts: 108.2, avgAllow: 120.5 },
-            'Wizards': { abbr: 'WAS', avgPts: 108.2, avgAllow: 120.5 }
-        };
-
-        const NBA_PLAYERS = {
-            'LeBron James': { team: 'LAL', ppg: 25.8, rpg: 7.5, apg: 8.2 },
-            'Anthony Davis': { team: 'LAL', ppg: 27.2, rpg: 12.1, apg: 3.5 },
-            'Jayson Tatum': { team: 'BOS', ppg: 28.5, rpg: 8.8, apg: 5.2 },
-            'Jaylen Brown': { team: 'BOS', ppg: 24.2, rpg: 5.8, apg: 3.8 },
-            'Stephen Curry': { team: 'GSW', ppg: 26.8, rpg: 4.5, apg: 6.2 },
-            'Nikola Jokic': { team: 'DEN', ppg: 29.5, rpg: 13.2, apg: 10.8 },
-            'Giannis Antetokounmpo': { team: 'MIL', ppg: 31.2, rpg: 11.8, apg: 6.5 },
-            'Luka Doncic': { team: 'DAL', ppg: 33.5, rpg: 9.2, apg: 9.8 },
-            'Kevin Durant': { team: 'PHX', ppg: 27.8, rpg: 6.5, apg: 5.2 },
-            'Shai Gilgeous-Alexander': { team: 'OKC', ppg: 31.5, rpg: 5.5, apg: 6.2 },
-            'Anthony Edwards': { team: 'MIN', ppg: 28.5, rpg: 5.8, apg: 5.5 },
-            'Donovan Mitchell': { team: 'CLE', ppg: 26.8, rpg: 5.2, apg: 6.1 },
-            'Jalen Brunson': { team: 'NYK', ppg: 28.2, rpg: 3.8, apg: 7.5 },
-            'Joel Embiid': { team: 'PHI', ppg: 28.5, rpg: 11.2, apg: 5.8 },
-            'De\'Aaron Fox': { team: 'SAC', ppg: 26.8, rpg: 4.5, apg: 6.0 },
-            'Tyrese Haliburton': { team: 'IND', ppg: 20.5, rpg: 4.0, apg: 10.8 },
-            'Devin Booker': { team: 'PHX', ppg: 27.2, rpg: 4.8, apg: 6.8 },
-            'Jimmy Butler': { team: 'MIA', ppg: 22.5, rpg: 5.8, apg: 5.2 },
-            'Trae Young': { team: 'ATL', ppg: 26.2, rpg: 3.0, apg: 10.8 },
-            'Damian Lillard': { team: 'MIL', ppg: 25.5, rpg: 4.5, apg: 7.2 }
-        };
-
-        // Tennis Players
-        const TENNIS_PLAYERS = {
-            'Sinner': { rank: 1, winRate: 82, avgGames: 21.2 },
-            'Jannik': { rank: 1, winRate: 82, avgGames: 21.2 },
-            'Djokovic': { rank: 2, winRate: 78, avgGames: 22.0 },
-            'Novak': { rank: 2, winRate: 78, avgGames: 22.0 },
-            'Alcaraz': { rank: 3, winRate: 76, avgGames: 22.5 },
-            'Carlos': { rank: 3, winRate: 76, avgGames: 22.5 },
-            'Medvedev': { rank: 4, winRate: 70, avgGames: 23.0 },
-            'Daniil': { rank: 4, winRate: 70, avgGames: 23.0 },
-            'Zverev': { rank: 5, winRate: 68, avgGames: 23.2 },
-            'Alexander': { rank: 5, winRate: 68, avgGames: 23.2 },
-            'Rublev': { rank: 6, winRate: 65, avgGames: 22.8 },
-            'Fritz': { rank: 8, winRate: 64, avgGames: 22.5 },
-            'Taylor': { rank: 8, winRate: 64, avgGames: 22.5 },
-            'Ruud': { rank: 9, winRate: 63, avgGames: 22.8 },
-            'Casper': { rank: 9, winRate: 63, avgGames: 22.8 },
-            'Swiatek': { rank: 1, winRate: 85, avgGames: 18.5 },
-            'Iga': { rank: 1, winRate: 85, avgGames: 18.5 },
-            'Sabalenka': { rank: 2, winRate: 75, avgGames: 20.0 },
-            'Aryna': { rank: 2, winRate: 75, avgGames: 20.0 },
-            'Gauff': { rank: 3, winRate: 70, avgGames: 21.0 },
-            'Coco': { rank: 3, winRate: 70, avgGames: 21.0 },
-            'Rybakina': { rank: 4, winRate: 68, avgGames: 20.5 },
-            'Elena': { rank: 4, winRate: 68, avgGames: 20.5 }
-        };
-
-        // ============================================================
-        // STATE
-        // ============================================================
-
-        let state = {
-            user: null,
-            authLoading: true,
-            activeSport: 'football',
-            activeTab: 'matches',
-            selectedLeague: 135,
-            matches: [],
-            selectedMatch: null,
-            loading: false,
-            error: null,
-            history: [],
-            syncStatus: 'offline'
-        };
-
-        // ============================================================
-        // FIREBASE
-        // ============================================================
-
-        function setupAuthListener() {
-            if (!auth) {
-                state.authLoading = false;
-                state.history = JSON.parse(localStorage.getItem('bombaBetHistory') || '[]');
-                render();
-                return;
-            }
-            
-            auth.onAuthStateChanged((user) => {
-                state.user = user;
-                state.authLoading = false;
-                if (user) {
-                    loadCloudHistory();
-                    setupRealtimeSync();
-                } else {
-                    state.history = JSON.parse(localStorage.getItem('bombaBetHistory') || '[]');
-                    state.syncStatus = 'offline';
-                }
-                render();
-            });
-        }
-
-        async function signInWithGoogle() {
-            try {
-                await auth.signInWithPopup(new firebase.auth.GoogleAuthProvider());
-            } catch (e) { alert('Errore login: ' + e.message); }
-        }
-
-        async function signOut() {
-            await auth.signOut();
-            state.user = null;
-            state.history = [];
-            render();
-        }
-
-        async function loadCloudHistory() {
-            state.syncStatus = 'syncing';
-            try {
-                const snapshot = await database.ref(`users/${state.user.uid}/history`).once('value');
-                state.history = snapshot.val() ? Object.values(snapshot.val()) : [];
-                state.syncStatus = 'synced';
-            } catch (e) { state.syncStatus = 'offline'; }
-            render();
-        }
-
-        function setupRealtimeSync() {
-            database.ref(`users/${state.user.uid}/history`).on('value', (snapshot) => {
-                state.history = snapshot.val() ? Object.values(snapshot.val()) : [];
-                state.syncStatus = 'synced';
-                render();
-            });
-        }
-
-        async function saveToCloud(entry) {
-            if (database && state.user) {
-                await database.ref(`users/${state.user.uid}/history/${entry.id}`).set(entry);
-            } else {
-                state.history.unshift(entry);
-                localStorage.setItem('bombaBetHistory', JSON.stringify(state.history));
-            }
-            render();
-        }
-
-        async function updateResult(id, result) {
-            if (database && state.user) {
-                await database.ref(`users/${state.user.uid}/history/${id}/result`).set(result);
-            }
-            const entry = state.history.find(e => e.id === id);
-            if (entry) entry.result = result;
-            localStorage.setItem('bombaBetHistory', JSON.stringify(state.history));
-            render();
-        }
-
-        // ============================================================
-        // RAPIDAPI CALLS
-        // ============================================================
-
-        async function apiCall(sport, endpoint) {
-            const host = API_HOSTS[sport];
-            const url = `https://${host}${endpoint}`;
-            
-            console.log(`📡 API Call: ${url}`);
-            
-            const response = await fetch(url, {
-                method: 'GET',
-                headers: {
-                    'X-RapidAPI-Key': RAPIDAPI_KEY,
-                    'X-RapidAPI-Host': host
-                }
-            });
-            
-            if (!response.ok) {
-                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-            }
-            
-            const data = await response.json();
-            console.log(`✅ Response:`, data);
-            return data;
-        }
-
-        async function loadMatches() {
-            state.loading = true;
-            state.error = null;
-            state.matches = [];
-            state.selectedMatch = null;
-            render();
-
-            try {
-                if (state.activeSport === 'football') {
-                    console.log(`⚽ Loading football - League ${state.selectedLeague}`);
-                    const data = await apiCall('football', `/v3/fixtures?league=${state.selectedLeague}&season=2024&next=15`);
-                    
-                    if (data.response && data.response.length > 0) {
-                        state.matches = data.response;
-                        console.log(`✅ Found ${data.response.length} matches`);
-                    } else {
-                        state.error = 'Nessuna partita trovata per questo campionato';
-                    }
-                } 
-                else if (state.activeSport === 'nba') {
-                    console.log(`🏀 Loading NBA`);
-                    
-                    for (let i = 0; i <= 7; i++) {
-                        const date = getDateString(i);
-                        try {
-                            const data = await apiCall('basketball', `/games?league=12&season=2024-2025&date=${date}`);
-                            
-                            if (data.response && data.response.length > 0) {
-                                const upcoming = data.response.filter(g => 
-                                    g.status.short === 'NS' || g.status.short === 'SCHED' || !g.scores.home.total
-                                );
-                                
-                                if (upcoming.length > 0) {
-                                    state.matches = upcoming;
-                                    console.log(`✅ Found ${upcoming.length} NBA games for ${date}`);
-                                    break;
-                                }
-                            }
-                        } catch (e) {
-                            console.log(`NBA ${date} error:`, e.message);
-                        }
-                    }
-                    
-                    if (state.matches.length === 0) {
-                        state.error = 'Nessuna partita NBA trovata. Assicurati di aver sottoscritto API-Basketball su RapidAPI.';
-                    }
-                }
-                else if (state.activeSport === 'tennis') {
-                    console.log(`🎾 Loading Tennis`);
-                    
-                    for (let i = 0; i <= 7; i++) {
-                        const date = getDateString(i);
-                        try {
-                            const data = await apiCall('tennis', `/games?date=${date}`);
-                            
-                            if (data.response && data.response.length > 0) {
-                                const upcoming = data.response.filter(g => g.status.short === 'NS');
-                                
-                                if (upcoming.length > 0) {
-                                    state.matches = upcoming.slice(0, 20);
-                                    console.log(`✅ Found ${upcoming.length} Tennis matches for ${date}`);
-                                    break;
-                                }
-                            }
-                        } catch (e) {
-                            console.log(`Tennis ${date} error:`, e.message);
-                        }
-                    }
-                    
-                    if (state.matches.length === 0) {
-                        state.error = 'Nessuna partita Tennis trovata. Assicurati di aver sottoscritto API-Tennis su RapidAPI.';
-                    }
-                }
-            } catch (e) {
-                console.error('❌ API Error:', e);
-                state.error = 'Errore: ' + e.message;
-            }
-
-            state.loading = false;
-            render();
-        }
-
-        function getDateString(daysFromNow) {
-            const d = new Date();
-            d.setDate(d.getDate() + daysFromNow);
-            return d.toISOString().split('T')[0];
-        }
-
-        // ============================================================
-        // ANALYSIS ALGORITHMS
-        // ============================================================
-
-        function getTeamStats(name) {
-            if (!name) return { corners: 5.0, cornersAg: 5.0, cards: 2.0, cardsAg: 2.0, gf: 1.3, ga: 1.3, ggRate: 50 };
-            
-            for (const [team, stats] of Object.entries(TEAM_STATS)) {
-                if (name.toLowerCase().includes(team.toLowerCase()) || team.toLowerCase().includes(name.toLowerCase())) {
-                    return stats;
-                }
-            }
-            return { corners: 5.0, cornersAg: 5.0, cards: 2.0, cardsAg: 2.0, gf: 1.3, ga: 1.3, ggRate: 50 };
-        }
-
-        function analyzeFootballMatch(home, away) {
-            const h = getTeamStats(home);
-            const a = getTeamStats(away);
-
-            // GG/NG
-            const homeScoreProb = Math.min(95, h.gf / 2.5 * 100);
-            const awayScoreProb = Math.min(95, a.gf / 2.5 * 100);
-            const avgGGRate = (h.ggRate + a.ggRate) / 2;
-            let ggProb = (homeScoreProb * awayScoreProb / 100) * 0.5 + avgGGRate * 0.5;
-            ggProb = Math.max(25, Math.min(78, ggProb));
-
-            // Goals
-            const homeGoalsExp = (h.gf * 1.05 + a.ga * 0.95) / 2;
-            const awayGoalsExp = (a.gf * 0.95 + h.ga * 1.05) / 2;
-            const totalGoalsExp = homeGoalsExp + awayGoalsExp;
-
-            // Corners
-            const homeCornersExp = (h.corners * 1.08 + a.cornersAg * 0.92) / 2;
-            const awayCornersExp = (a.corners * 0.92 + h.cornersAg * 1.08) / 2;
-            const totalCornersExp = homeCornersExp + awayCornersExp;
-
-            // Cards
-            const homeCardsExp = (h.cards * 0.88 + a.cardsAg * 1.12) / 2;
-            const awayCardsExp = (a.cards * 1.15 + h.cardsAg * 0.85) / 2;
-            const totalCardsExp = homeCardsExp + awayCardsExp;
-
-            return {
-                gg: { prob: ggProb, pick: ggProb > 52 ? 'GG' : 'NG', conf: 45 + Math.abs(ggProb - 50) * 0.8 },
-                goals: {
-                    exp: totalGoalsExp,
-                    lines: [1.5, 2.5, 3.5].map(line => ({
-                        line, pick: totalGoalsExp > line ? 'OVER' : 'UNDER',
-                        conf: Math.min(82, 48 + Math.abs(totalGoalsExp - line) * 15)
-                    }))
-                },
-                corners: {
-                    exp: totalCornersExp,
-                    lines: [8.5, 9.5, 10.5, 11.5].map(line => ({
-                        line, pick: totalCornersExp > line ? 'OVER' : 'UNDER',
-                        conf: Math.min(85, 50 + Math.abs(totalCornersExp - line) * 9)
-                    }))
-                },
-                cards: {
-                    exp: totalCardsExp,
-                    lines: [3.5, 4.5, 5.5].map(line => ({
-                        line, pick: totalCardsExp > line ? 'OVER' : 'UNDER',
-                        conf: Math.min(82, 48 + Math.abs(totalCardsExp - line) * 11)
-                    }))
-                }
-            };
-        }
-
-        function getNBATeamStats(name) {
-            if (!name) return { avgPts: 112, avgAllow: 112 };
-            for (const [team, stats] of Object.entries(NBA_TEAMS)) {
-                if (name.toLowerCase().includes(team.toLowerCase()) || team.toLowerCase().includes(name.toLowerCase())) {
-                    return stats;
-                }
-            }
-            return { avgPts: 112, avgAllow: 112 };
-        }
-
-        function analyzeNBAGame(homeTeam, awayTeam) {
-            const h = getNBATeamStats(homeTeam);
-            const a = getNBATeamStats(awayTeam);
-
-            const homeExp = (h.avgPts + a.avgAllow) / 2 * 1.02;
-            const awayExp = (a.avgPts + h.avgAllow) / 2 * 0.98;
-            const totalExp = homeExp + awayExp;
-            const spread = homeExp - awayExp;
-
-            return {
-                total: {
-                    exp: totalExp,
-                    lines: [215.5, 220.5, 225.5, 230.5].map(line => ({
-                        line, pick: totalExp > line ? 'OVER' : 'UNDER',
-                        conf: Math.min(78, 45 + Math.abs(totalExp - line) * 2.5)
-                    }))
-                },
-                spread: { value: spread, pick: spread > 0 ? homeTeam : awayTeam, conf: Math.min(75, 48 + Math.abs(spread) * 2) },
-                homeExp, awayExp
-            };
-        }
-
-        function getPlayersForTeams(home, away) {
-            const players = [];
-            const hStats = getNBATeamStats(home);
-            const aStats = getNBATeamStats(away);
-            
-            for (const [name, data] of Object.entries(NBA_PLAYERS)) {
-                if (data.team === hStats.abbr || data.team === aStats.abbr) {
-                    players.push({ name, ...data });
-                }
-            }
-            return players;
-        }
-
-        function getTennisPlayer(name) {
-            if (!name) return { rank: 50, winRate: 50, avgGames: 22 };
-            for (const [pName, stats] of Object.entries(TENNIS_PLAYERS)) {
-                if (name.toLowerCase().includes(pName.toLowerCase())) {
-                    return stats;
-                }
-            }
-            return { rank: 50, winRate: 50, avgGames: 22 };
-        }
-
-        function analyzeTennisMatch(p1Name, p2Name) {
-            const p1 = getTennisPlayer(p1Name);
-            const p2 = getTennisPlayer(p2Name);
-
-            const rankDiff = p2.rank - p1.rank;
-            const winDiff = p1.winRate - p2.winRate;
-
-            let p1WinProb = 50 + rankDiff * 2 + winDiff * 0.3;
-            p1WinProb = Math.max(20, Math.min(80, p1WinProb));
-
-            const avgGames = (p1.avgGames + p2.avgGames) / 2;
-            const tightMatch = Math.abs(p1WinProb - 50) < 12;
-            const expGames = avgGames + (tightMatch ? 2.5 : -1.5);
-
-            return {
-                winner: { player: p1WinProb > 50 ? p1Name : p2Name, conf: Math.min(80, 48 + Math.abs(p1WinProb - 50) * 0.7) },
-                games: {
-                    exp: expGames,
-                    lines: [20.5, 21.5, 22.5, 23.5].map(line => ({
-                        line, pick: expGames > line ? 'OVER' : 'UNDER',
-                        conf: Math.min(78, 46 + Math.abs(expGames - line) * 8)
-                    }))
-                },
-                p1WinProb, p2WinProb: 100 - p1WinProb
-            };
-        }
-
-        // ============================================================
-        // SAVE & STATS
-        // ============================================================
-
-        async function savePick(desc, conf, sport) {
-            const entry = { id: Date.now(), sport, description: desc, conf: Math.round(conf), result: null, date: new Date().toISOString() };
-            await saveToCloud(entry);
-            alert('✅ Pick salvato!');
-        }
-
-        function getStats() {
-            const resolved = state.history.filter(e => e.result);
-            const won = resolved.filter(e => e.result === 'won').length;
-            return { total: state.history.length, won, lost: resolved.length - won, hitRate: resolved.length ? (won / resolved.length * 100).toFixed(1) : 0 };
-        }
-
-        // ============================================================
-        // RENDER
-        // ============================================================
-
-        function formatDateTime(dateStr) {
-            if (!dateStr) return { date: '--', time: '--' };
-            const d = new Date(dateStr);
-            return {
-                date: d.toLocaleDateString('it-IT', { weekday: 'short', day: '2-digit', month: '2-digit' }),
-                time: d.toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' })
-            };
-        }
-
-        function confClass(v) { return v >= 65 ? 'conf-high' : v >= 52 ? 'conf-mid' : 'conf-low'; }
-
-        function render() {
-            const root = document.getElementById('root');
-
-            if (state.authLoading) {
-                root.innerHTML = `<div class="min-h-screen flex items-center justify-center"><div class="w-12 h-12 border-4 border-cyan-400 border-t-transparent rounded-full loader"></div></div>`;
-                return;
-            }
-
-            if (!state.user) {
-                root.innerHTML = `
-                    <div class="min-h-screen flex items-center justify-center p-4">
-                        <div class="glass rounded-3xl p-8 max-w-md w-full slide-up" style="animation-delay:0.1s">
-                            <div class="text-center mb-8">
-                                <div class="w-24 h-24 rounded-2xl bg-gradient-to-br from-emerald-400 to-cyan-500 flex items-center justify-center mx-auto mb-4 glow"><span class="text-5xl">🎯</span></div>
-                                <h1 class="text-3xl font-black gradient-text">BOMBA BET</h1>
-                                <p class="text-gray-500 mt-2">Analisi Sportive Professionali</p>
-                            </div>
-                            <div class="grid grid-cols-3 gap-3 mb-8">
-                                <div class="glass rounded-xl p-4 text-center"><span class="text-2xl">⚽</span><p class="text-xs text-gray-500 mt-2">Calcio</p></div>
-                                <div class="glass rounded-xl p-4 text-center"><span class="text-2xl">🏀</span><p class="text-xs text-gray-500 mt-2">NBA</p></div>
-                                <div class="glass rounded-xl p-4 text-center"><span class="text-2xl">🎾</span><p class="text-xs text-gray-500 mt-2">Tennis</p></div>
-                            </div>
-                            <button onclick="signInWithGoogle()" class="w-full py-4 rounded-xl font-bold bg-white text-gray-800 flex items-center justify-center gap-3 hover:bg-gray-100 transition">
-                                <img src="https://www.google.com/favicon.ico" class="w-6 h-6"/> Accedi con Google
-                            </button>
-                        </div>
-                    </div>`;
-                return;
-            }
-
-            let content = '';
-            const sport = state.activeSport;
-            const sportColors = { football: 'from-emerald-400 to-cyan-500', nba: 'from-orange-400 to-yellow-500', tennis: 'from-purple-400 to-pink-500' };
-
-            // MATCHES TAB
-            if (state.activeTab === 'matches') {
-                if (state.selectedMatch) {
-                    // DETAILED ANALYSIS
-                    if (sport === 'football') {
-                        const m = state.selectedMatch;
-                        const home = m.teams.home.name;
-                        const away = m.teams.away.name;
-                        const analysis = analyzeFootballMatch(home, away);
-                        const dt = formatDateTime(m.fixture.date);
-
-                        content = `
-                            <button onclick="state.selectedMatch=null;render()" class="flex items-center gap-2 text-gray-400 mb-4 hover:text-white">← Torna alle partite</button>
-                            <div class="glass rounded-2xl p-4 mb-4 glow">
-                                <div class="flex items-center justify-between mb-2">
-                                    <span class="text-xs text-cyan-400 font-medium">${m.league?.name || ''}</span>
-                                    <span class="text-xs text-gray-500">${dt.date} • ${dt.time}</span>
-                                </div>
-                                <div class="flex items-center justify-center gap-4">
-                                    <div class="text-center">${m.teams.home.logo ? `<img src="${m.teams.home.logo}" class="w-12 h-12 mx-auto mb-1"/>` : ''}<span class="font-bold text-white text-sm">${home}</span></div>
-                                    <span class="text-gray-500 text-xl font-bold">vs</span>
-                                    <div class="text-center">${m.teams.away.logo ? `<img src="${m.teams.away.logo}" class="w-12 h-12 mx-auto mb-1"/>` : ''}<span class="font-bold text-white text-sm">${away}</span></div>
-                                </div>
-                            </div>
-                            <!-- GG/NG -->
-                            <div class="glass rounded-xl p-4 mb-3">
-                                <h3 class="font-bold mb-3">⚽ Goal/Goal</h3>
-                                <div class="grid grid-cols-2 gap-3">
-                                    <div class="bg-black/30 rounded-lg p-3 text-center ${analysis.gg.pick === 'GG' ? 'ring-2 ring-emerald-500' : ''}">
-                                        <p class="font-black text-xl text-white">GG</p>
-                                        <p class="text-xs ${confClass(analysis.gg.prob > 52 ? analysis.gg.conf : 100 - analysis.gg.conf)}">${analysis.gg.prob.toFixed(0)}%</p>
-                                        <button onclick="savePick('${home} vs ${away} - GG', ${analysis.gg.prob > 52 ? analysis.gg.conf : 100 - analysis.gg.conf}, 'football')" class="mt-2 bg-emerald-500 text-white px-3 py-1 rounded text-xs">💾</button>
-                                    </div>
-                                    <div class="bg-black/30 rounded-lg p-3 text-center ${analysis.gg.pick === 'NG' ? 'ring-2 ring-emerald-500' : ''}">
-                                        <p class="font-black text-xl text-white">NG</p>
-                                        <p class="text-xs ${confClass(analysis.gg.prob < 48 ? analysis.gg.conf : 100 - analysis.gg.conf)}">${(100 - analysis.gg.prob).toFixed(0)}%</p>
-                                        <button onclick="savePick('${home} vs ${away} - NG', ${analysis.gg.prob < 48 ? analysis.gg.conf : 100 - analysis.gg.conf}, 'football')" class="mt-2 bg-emerald-500 text-white px-3 py-1 rounded text-xs">💾</button>
-                                    </div>
-                                </div>
-                            </div>
-                            <!-- GOALS -->
-                            <div class="glass rounded-xl p-4 mb-3">
-                                <h3 class="font-bold mb-2">🥅 Goals <span class="text-xs text-gray-500 font-normal ml-2">Exp: ${analysis.goals.exp.toFixed(1)}</span></h3>
-                                <div class="space-y-2">${analysis.goals.lines.map(l => `
-                                    <div class="flex items-center justify-between bg-black/30 rounded-lg p-2">
-                                        <span class="text-sm text-gray-400">${l.pick} ${l.line}</span>
-                                        <div class="flex items-center gap-2">
-                                            <span class="text-sm font-bold ${confClass(l.conf)}">${l.conf.toFixed(0)}%</span>
-                                            <button onclick="savePick('${home} vs ${away} - ${l.pick} ${l.line} Goals', ${l.conf}, 'football')" class="bg-emerald-500/80 text-white px-2 py-1 rounded text-xs">💾</button>
-                                        </div>
-                                    </div>`).join('')}</div>
-                            </div>
-                            <!-- CORNERS -->
-                            <div class="glass rounded-xl p-4 mb-3">
-                                <h3 class="font-bold mb-2">🚩 Corner <span class="text-xs text-gray-500 font-normal ml-2">Exp: ${analysis.corners.exp.toFixed(1)}</span></h3>
-                                <div class="space-y-2">${analysis.corners.lines.map(l => `
-                                    <div class="flex items-center justify-between bg-black/30 rounded-lg p-2">
-                                        <span class="text-sm text-gray-400">${l.pick} ${l.line}</span>
-                                        <div class="flex items-center gap-2">
-                                            <span class="text-sm font-bold ${confClass(l.conf)}">${l.conf.toFixed(0)}%</span>
-                                            <button onclick="savePick('${home} vs ${away} - ${l.pick} ${l.line} Corner', ${l.conf}, 'football')" class="bg-emerald-500/80 text-white px-2 py-1 rounded text-xs">💾</button>
-                                        </div>
-                                    </div>`).join('')}</div>
-                            </div>
-                            <!-- CARDS -->
-                            <div class="glass rounded-xl p-4">
-                                <h3 class="font-bold mb-2">🟨 Cartellini <span class="text-xs text-gray-500 font-normal ml-2">Exp: ${analysis.cards.exp.toFixed(1)}</span></h3>
-                                <div class="space-y-2">${analysis.cards.lines.map(l => `
-                                    <div class="flex items-center justify-between bg-black/30 rounded-lg p-2">
-                                        <span class="text-sm text-gray-400">${l.pick} ${l.line}</span>
-                                        <div class="flex items-center gap-2">
-                                            <span class="text-sm font-bold ${confClass(l.conf)}">${l.conf.toFixed(0)}%</span>
-                                            <button onclick="savePick('${home} vs ${away} - ${l.pick} ${l.line} Cards', ${l.conf}, 'football')" class="bg-emerald-500/80 text-white px-2 py-1 rounded text-xs">💾</button>
-                                        </div>
-                                    </div>`).join('')}</div>
-                            </div>`;
-                    } else if (sport === 'nba') {
-                        const m = state.selectedMatch;
-                        const home = m.teams.home.name;
-                        const away = m.teams.away.name;
-                        const analysis = analyzeNBAGame(home, away);
-                        const dt = formatDateTime(m.date);
-                        const players = getPlayersForTeams(home, away);
-
-                        content = `
-                            <button onclick="state.selectedMatch=null;render()" class="flex items-center gap-2 text-gray-400 mb-4 hover:text-white">← Torna alle partite</button>
-                            <div class="glass rounded-2xl p-4 mb-4 glow-orange">
-                                <div class="flex items-center justify-between mb-2">
-                                    <span class="text-xs text-orange-400 font-medium">NBA</span>
-                                    <span class="text-xs text-gray-500">${dt.date} • ${dt.time}</span>
-                                </div>
-                                <div class="flex items-center justify-center gap-4">
-                                    <div class="text-center">${m.teams.home.logo ? `<img src="${m.teams.home.logo}" class="w-12 h-12 mx-auto mb-1"/>` : ''}<span class="font-bold text-white text-sm">${home}</span></div>
-                                    <span class="text-gray-500 text-xl font-bold">vs</span>
-                                    <div class="text-center">${m.teams.away.logo ? `<img src="${m.teams.away.logo}" class="w-12 h-12 mx-auto mb-1"/>` : ''}<span class="font-bold text-white text-sm">${away}</span></div>
-                                </div>
-                            </div>
-                            <!-- TOTALS -->
-                            <div class="glass rounded-xl p-4 mb-3">
-                                <h3 class="font-bold mb-2">🏀 Totale Punti <span class="text-xs text-gray-500 font-normal ml-2">Exp: ${analysis.total.exp.toFixed(1)}</span></h3>
-                                <div class="space-y-2">${analysis.total.lines.map(l => `
-                                    <div class="flex items-center justify-between bg-black/30 rounded-lg p-2">
-                                        <span class="text-sm text-gray-400">${l.pick} ${l.line}</span>
-                                        <div class="flex items-center gap-2">
-                                            <span class="text-sm font-bold ${confClass(l.conf)}">${l.conf.toFixed(0)}%</span>
-                                            <button onclick="savePick('${home} vs ${away} - ${l.pick} ${l.line}', ${l.conf}, 'nba')" class="bg-orange-500/80 text-white px-2 py-1 rounded text-xs">💾</button>
-                                        </div>
-                                    </div>`).join('')}</div>
-                            </div>
-                            <!-- SPREAD -->
-                            <div class="glass rounded-xl p-4 mb-3">
-                                <h3 class="font-bold mb-2">📊 Spread</h3>
-                                <div class="bg-black/30 rounded-lg p-3 text-center">
-                                    <p class="font-black text-xl text-white">${analysis.spread.pick}</p>
-                                    <p class="text-sm text-gray-400">${analysis.spread.value > 0 ? '-' : '+'}${Math.abs(analysis.spread.value).toFixed(1)}</p>
-                                    <p class="text-xs ${confClass(analysis.spread.conf)}">${analysis.spread.conf.toFixed(0)}%</p>
-                                    <button onclick="savePick('${home} vs ${away} - ${analysis.spread.pick} ${analysis.spread.value > 0 ? '-' : '+'}${Math.abs(analysis.spread.value).toFixed(1)}', ${analysis.spread.conf}, 'nba')" class="mt-2 bg-orange-500 text-white px-3 py-1 rounded text-xs">💾</button>
-                                </div>
-                            </div>
-                            ${players.length > 0 ? `
-                                <div class="glass rounded-xl p-4">
-                                    <h3 class="font-bold mb-3">👤 Player Props</h3>
-                                    <div class="space-y-2">${players.slice(0, 6).map(p => `
-                                        <div class="bg-black/30 rounded-lg p-2">
-                                            <p class="font-bold text-white text-sm mb-1">${p.name}</p>
-                                            <div class="flex gap-2 flex-wrap">
-                                                <button onclick="savePick('${p.name} O ${(p.ppg - 0.5).toFixed(1)} PTS', 62, 'nba')" class="bg-orange-500/60 text-white px-2 py-1 rounded text-xs">O ${(p.ppg - 0.5).toFixed(1)} PTS</button>
-                                                <button onclick="savePick('${p.name} O ${(p.rpg - 0.5).toFixed(1)} REB', 58, 'nba')" class="bg-orange-500/60 text-white px-2 py-1 rounded text-xs">O ${(p.rpg - 0.5).toFixed(1)} REB</button>
-                                                <button onclick="savePick('${p.name} O ${(p.apg - 0.5).toFixed(1)} AST', 55, 'nba')" class="bg-orange-500/60 text-white px-2 py-1 rounded text-xs">O ${(p.apg - 0.5).toFixed(1)} AST</button>
-                                            </div>
-                                        </div>`).join('')}</div>
-                                </div>` : ''}`;
-                    } else if (sport === 'tennis') {
-                        const m = state.selectedMatch;
-                        const p1 = m.players?.home?.name || 'Player 1';
-                        const p2 = m.players?.away?.name || 'Player 2';
-                        const analysis = analyzeTennisMatch(p1, p2);
-
-                        content = `
-                            <button onclick="state.selectedMatch=null;render()" class="flex items-center gap-2 text-gray-400 mb-4 hover:text-white">← Torna ai match</button>
-                            <div class="glass rounded-2xl p-4 mb-4 glow-purple">
-                                <div class="text-xs text-purple-400 mb-2">${m.league?.name || 'ATP/WTA'}</div>
-                                <div class="flex items-center justify-center gap-4">
-                                    <span class="font-bold text-white">${p1}</span>
-                                    <span class="text-gray-500">vs</span>
-                                    <span class="font-bold text-white">${p2}</span>
-                                </div>
-                            </div>
-                            <!-- WINNER -->
-                            <div class="glass rounded-xl p-4 mb-3">
-                                <h3 class="font-bold mb-3">🏆 Vincente</h3>
-                                <div class="grid grid-cols-2 gap-3">
-                                    <div class="bg-black/30 rounded-lg p-3 text-center ${analysis.p1WinProb > 50 ? 'ring-2 ring-purple-500' : ''}">
-                                        <p class="font-bold text-white">${p1}</p>
-                                        <p class="text-xs ${confClass(analysis.p1WinProb > 50 ? analysis.winner.conf : 100 - analysis.winner.conf)}">${analysis.p1WinProb.toFixed(0)}%</p>
-                                        <button onclick="savePick('${p1} vs ${p2} - Vince ${p1}', ${analysis.p1WinProb > 50 ? analysis.winner.conf : 100 - analysis.winner.conf}, 'tennis')" class="mt-2 bg-purple-500 text-white px-3 py-1 rounded text-xs">💾</button>
-                                    </div>
-                                    <div class="bg-black/30 rounded-lg p-3 text-center ${analysis.p2WinProb > 50 ? 'ring-2 ring-purple-500' : ''}">
-                                        <p class="font-bold text-white">${p2}</p>
-                                        <p class="text-xs ${confClass(analysis.p2WinProb > 50 ? analysis.winner.conf : 100 - analysis.winner.conf)}">${analysis.p2WinProb.toFixed(0)}%</p>
-                                        <button onclick="savePick('${p1} vs ${p2} - Vince ${p2}', ${analysis.p2WinProb > 50 ? analysis.winner.conf : 100 - analysis.winner.conf}, 'tennis')" class="mt-2 bg-purple-500 text-white px-3 py-1 rounded text-xs">💾</button>
-                                    </div>
-                                </div>
-                            </div>
-                            <!-- GAMES -->
-                            <div class="glass rounded-xl p-4">
-                                <h3 class="font-bold mb-2">🎾 Total Games <span class="text-xs text-gray-500 font-normal ml-2">Exp: ${analysis.games.exp.toFixed(1)}</span></h3>
-                                <div class="space-y-2">${analysis.games.lines.map(l => `
-                                    <div class="flex items-center justify-between bg-black/30 rounded-lg p-2">
-                                        <span class="text-sm text-gray-400">${l.pick} ${l.line}</span>
-                                        <div class="flex items-center gap-2">
-                                            <span class="text-sm font-bold ${confClass(l.conf)}">${l.conf.toFixed(0)}%</span>
-                                            <button onclick="savePick('${p1} vs ${p2} - ${l.pick} ${l.line} Games', ${l.conf}, 'tennis')" class="bg-purple-500/80 text-white px-2 py-1 rounded text-xs">💾</button>
-                                        </div>
-                                    </div>`).join('')}</div>
-                            </div>`;
-                    }
-                } else {
-                    // MATCH LIST
-                    if (sport === 'football') {
-                        content = `<div class="flex gap-1.5 overflow-x-auto pb-2 mb-3">
-                            ${Object.entries(FOOTBALL_LEAGUES).slice(0, 8).map(([id, l]) => `
-                                <button onclick="state.selectedLeague=${id};loadMatches()" class="px-2.5 py-1.5 rounded-lg text-xs font-bold whitespace-nowrap ${state.selectedLeague == id ? 'bg-gradient-to-r from-emerald-400 to-cyan-500 text-gray-900' : 'glass text-gray-400'}">${l.flag}</button>
-                            `).join('')}
-                            <select onchange="state.selectedLeague=this.value;loadMatches()" class="px-2 py-1 rounded-lg text-xs">
-                                <option value="">+ Altri</option>
-                                ${Object.entries(FOOTBALL_LEAGUES).slice(8).map(([id, l]) => `<option value="${id}">${l.flag} ${l.name}</option>`).join('')}
-                            </select>
-                        </div>`;
-                    }
-
-                    content += `
-                        <div class="flex items-center justify-between mb-3">
-                            <h2 class="font-bold">${sport === 'football' ? '⚽' : sport === 'nba' ? '🏀' : '🎾'} Partite</h2>
-                            <button onclick="loadMatches()" class="glass px-4 py-2 rounded-lg text-sm font-bold ${state.loading ? 'opacity-50' : 'hover:bg-white/10'}">
-                                ${state.loading ? '⏳ Caricamento...' : '🔄 Carica Partite'}
-                            </button>
-                        </div>`;
-
-                    if (state.loading) {
-                        content += `<div class="glass rounded-xl p-8 text-center"><div class="w-10 h-10 border-4 border-cyan-400 border-t-transparent rounded-full loader mx-auto mb-3"></div><p class="text-gray-500">Caricamento partite reali...</p></div>`;
-                    } else if (state.error) {
-                        content += `<div class="glass rounded-xl p-6 text-center"><p class="text-red-400 mb-2">⚠️ ${state.error}</p><p class="text-xs text-gray-500">Verifica la sottoscrizione RapidAPI</p></div>`;
-                    } else if (state.matches.length === 0) {
-                        content += `<div class="glass rounded-xl p-8 text-center"><p class="text-gray-500 mb-2">Nessuna partita caricata</p><p class="text-xs text-gray-400">Clicca "🔄 Carica Partite" per iniziare</p></div>`;
-                    } else {
-                        content += `<div class="space-y-2">`;
-                        state.matches.forEach((m, i) => {
-                            const dt = formatDateTime(sport === 'football' ? m.fixture?.date : m.date);
-                            let home, away, league, homeLogo, awayLogo;
-                            
-                            if (sport === 'football') {
-                                home = m.teams.home.name; away = m.teams.away.name; league = m.league?.name || '';
-                                homeLogo = m.teams.home.logo; awayLogo = m.teams.away.logo;
-                            } else if (sport === 'nba') {
-                                home = m.teams.home.name; away = m.teams.away.name; league = 'NBA';
-                                homeLogo = m.teams.home.logo; awayLogo = m.teams.away.logo;
-                            } else {
-                                home = m.players?.home?.name || 'TBD'; away = m.players?.away?.name || 'TBD'; league = m.league?.name || 'Tennis';
-                            }
-
-                            content += `
-                                <div onclick="state.selectedMatch=state.matches[${i}];render()" class="glass rounded-xl p-3 match-card slide-up" style="animation-delay:${i * 40}ms">
-                                    <div class="flex items-center justify-between mb-2">
-                                        <span class="text-[10px] text-cyan-400 font-medium">${league}</span>
-                                        <span class="text-[10px] text-gray-500">${dt.date} • ${dt.time}</span>
-                                    </div>
-                                    <div class="flex items-center justify-between">
-                                        <div class="flex items-center gap-2 flex-1">
-                                            ${homeLogo ? `<img src="${homeLogo}" class="w-8 h-8"/>` : ''}
-                                            <span class="font-bold text-white text-sm">${home}</span>
-                                        </div>
-                                        <span class="text-gray-500 text-xs px-2">vs</span>
-                                        <div class="flex items-center gap-2 flex-1 justify-end">
-                                            <span class="font-bold text-white text-sm">${away}</span>
-                                            ${awayLogo ? `<img src="${awayLogo}" class="w-8 h-8"/>` : ''}
-                                        </div>
-                                    </div>
-                                    <div class="text-center mt-2"><span class="text-xs text-emerald-400">Clicca per analisi →</span></div>
-                                </div>`;
-                        });
-                        content += `</div>`;
-                    }
-                }
-            }
-
-            // STATS TAB
-            if (state.activeTab === 'stats') {
-                const stats = getStats();
-                content = `
-                    <div class="glass rounded-xl p-4 mb-4 glow">
-                        <div class="flex items-center justify-between mb-3">
-                            <h3 class="font-bold">📊 Statistiche</h3>
-                            <span class="text-xs ${state.syncStatus === 'synced' ? 'text-emerald-400' : 'text-gray-500'}">${state.syncStatus === 'synced' ? '☁️ Sincronizzato' : '💾 Locale'}</span>
-                        </div>
-                        <div class="grid grid-cols-4 gap-2 text-center">
-                            <div class="bg-white/5 rounded-lg p-3"><p class="text-2xl font-black text-white">${stats.total}</p><p class="text-[10px] text-gray-500">Totali</p></div>
-                            <div class="bg-emerald-500/20 rounded-lg p-3"><p class="text-2xl font-black text-emerald-400">${stats.won}</p><p class="text-[10px] text-gray-500">Vinti</p></div>
-                            <div class="bg-red-500/20 rounded-lg p-3"><p class="text-2xl font-black text-red-400">${stats.lost}</p><p class="text-[10px] text-gray-500">Persi</p></div>
-                            <div class="bg-cyan-500/20 rounded-lg p-3"><p class="text-2xl font-black text-cyan-400">${stats.hitRate}%</p><p class="text-[10px] text-gray-500">Hit</p></div>
-                        </div>
-                    </div>
-                    <h3 class="font-bold mb-3">📝 Storico Pick</h3>
-                    <div class="space-y-2">
-                        ${state.history.length === 0 ? '<div class="glass rounded-xl p-6 text-center text-gray-500">Nessun pick salvato</div>' : ''}
-                        ${state.history.sort((a,b) => b.id - a.id).slice(0, 50).map(e => {
-                            const icon = e.sport === 'nba' ? '🏀' : e.sport === 'tennis' ? '🎾' : '⚽';
-                            const bgClass = e.result === 'won' ? 'bg-emerald-500/10 border-emerald-500/30' : e.result === 'lost' ? 'bg-red-500/10 border-red-500/30' : '';
-                            return `<div class="glass rounded-lg p-3 border ${bgClass}">
-                                <div class="flex items-center justify-between">
-                                    <div class="flex items-center gap-2 flex-1 min-w-0">
-                                        <span>${icon}</span>
-                                        <div class="min-w-0"><p class="text-sm text-white truncate">${e.description}</p><p class="text-[10px] text-gray-500">${e.conf}% • ${new Date(e.date).toLocaleDateString('it-IT')}</p></div>
-                                    </div>
-                                    ${e.result === null ? `<div class="flex gap-1 ml-2">
-                                        <button onclick="updateResult(${e.id},'won')" class="bg-emerald-500 text-white px-2.5 py-1.5 rounded text-xs font-bold">✓</button>
-                                        <button onclick="updateResult(${e.id},'lost')" class="bg-red-500 text-white px-2.5 py-1.5 rounded text-xs font-bold">✗</button>
-                                    </div>` : `<span class="text-xl ml-2">${e.result === 'won' ? '✅' : '❌'}</span>`}
-                                </div>
-                            </div>`;
-                        }).join('')}
-                    </div>
-                    <button onclick="signOut()" class="w-full mt-6 py-3 glass rounded-xl text-red-400 text-sm font-medium">🚪 Logout</button>`;
-            }
-
-            // MAIN LAYOUT
-            root.innerHTML = `
-                <div class="max-w-lg mx-auto min-h-screen flex flex-col">
-                    <header class="glass sticky top-0 z-50 border-b border-white/5">
-                        <div class="px-4 py-3 flex items-center justify-between">
-                            <div class="flex items-center gap-2">
-                                <div class="w-9 h-9 rounded-xl bg-gradient-to-br ${sportColors[sport]} flex items-center justify-center"><span class="text-lg">${sport === 'football' ? '⚽' : sport === 'nba' ? '🏀' : '🎾'}</span></div>
-                                <div><h1 class="font-black text-white text-sm">BOMBA BET</h1><p class="text-[10px] text-gray-500">${state.user?.displayName?.split(' ')[0] || 'User'}</p></div>
-                            </div>
-                            <div class="flex gap-1 glass rounded-xl p-1">
-                                <button onclick="state.activeSport='football';state.activeTab='matches';state.selectedMatch=null;state.matches=[];render()" class="px-3 py-2 rounded-lg text-sm ${sport === 'football' ? 'bg-gradient-to-r from-emerald-400 to-cyan-500 text-gray-900 font-bold' : 'text-gray-500'}">⚽</button>
-                                <button onclick="state.activeSport='nba';state.activeTab='matches';state.selectedMatch=null;state.matches=[];render()" class="px-3 py-2 rounded-lg text-sm ${sport === 'nba' ? 'bg-gradient-to-r from-orange-400 to-yellow-500 text-gray-900 font-bold' : 'text-gray-500'}">🏀</button>
-                                <button onclick="state.activeSport='tennis';state.activeTab='matches';state.selectedMatch=null;state.matches=[];render()" class="px-3 py-2 rounded-lg text-sm ${sport === 'tennis' ? 'bg-gradient-to-r from-purple-400 to-pink-500 text-white font-bold' : 'text-gray-500'}">🎾</button>
-                            </div>
-                        </div>
-                        <div class="flex px-3 pb-2 gap-2">
-                            <button onclick="state.activeTab='matches';state.selectedMatch=null;render()" class="flex-1 py-2 rounded-lg text-xs font-bold ${state.activeTab === 'matches' ? 'bg-gradient-to-r ' + sportColors[sport] + ' text-gray-900' : 'glass text-gray-500'}">📅 Partite</button>
-                            <button onclick="state.activeTab='stats';render()" class="flex-1 py-2 rounded-lg text-xs font-bold ${state.activeTab === 'stats' ? 'bg-gradient-to-r ' + sportColors[sport] + ' text-gray-900' : 'glass text-gray-500'}">📊 Stats</button>
-                        </div>
-                    </header>
-                    <main class="flex-1 p-4 pb-6">${content}</main>
-                </div>`;
-        }
-
-        // INIT
-        setupAuthListener();
-    </script>
+  <div id="app" class="max-w-2xl mx-auto min-h-screen flex flex-col">
+    <header class="glass sticky top-0 z-50 border-b border-white/5">
+      <div class="px-4 py-3 flex items-center justify-between gap-3">
+        <div class="flex items-center gap-3 min-w-0">
+          <div id="sportBadge" class="w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-400 to-cyan-500 flex items-center justify-center text-black font-black">
+            BB
+          </div>
+          <div class="min-w-0">
+            <div class="font-black text-white leading-tight">BOMBA BET</div>
+            <div class="text-[11px] text-gray-400 leading-tight">SportAPI7 (RapidAPI) • anti-429</div>
+          </div>
+        </div>
+
+        <div class="flex items-center gap-2">
+          <button id="btnKey" class="glass px-3 py-2 rounded-lg text-xs font-bold hover:bg-white/10">Imposta Key</button>
+          <button id="btnClearCache" class="glass px-3 py-2 rounded-lg text-xs font-bold text-red-300 hover:bg-white/10">Reset</button>
+        </div>
+      </div>
+
+      <div class="px-4 pb-3 flex flex-col gap-2">
+        <div class="flex gap-2 glass rounded-xl p-1">
+          <button data-sport="football" class="sportBtn flex-1 py-2 rounded-lg text-xs font-bold bg-gradient-to-r from-emerald-400 to-cyan-500 text-gray-900">Calcio</button>
+          <button data-sport="basketball" class="sportBtn flex-1 py-2 rounded-lg text-xs font-bold text-gray-300 hover:bg-white/5 rounded-lg">Basket</button>
+          <button data-sport="tennis" class="sportBtn flex-1 py-2 rounded-lg text-xs font-bold text-gray-300 hover:bg-white/5 rounded-lg">Tennis</button>
+        </div>
+
+        <div class="flex gap-2 items-center">
+          <input id="dateInput" type="date" class="glass w-full px-3 py-2 rounded-lg text-sm text-white" />
+          <button id="btnLoad" class="glass px-4 py-2 rounded-lg text-sm font-bold hover:bg-white/10 whitespace-nowrap">Carica</button>
+        </div>
+
+        <div id="statusLine" class="text-[11px] text-gray-400"></div>
+      </div>
+    </header>
+
+    <main class="flex-1 p-4 pb-6">
+      <div id="content"></div>
+    </main>
+
+    <footer class="px-4 pb-6 text-[11px] text-gray-500">
+      Nota: se ottieni 429, riduci i click e attendi; il codice fa throttle+retry automatico. (Se l’endpoint “scheduled-events” non esiste nella tua sottoscrizione, cambia la stringa ENDPOINTS qui sotto.)
+    </footer>
+  </div>
+
+<script>
+/* ============================================================
+   SPORTAPI7 (RapidAPI) - BASE
+   ============================================================ */
+
+// Host visto nel tuo screen (sportapi7.p.rapidapi.com) [file:17]
+const RAPIDAPI_HOST = "sportapi7.p.rapidapi.com";
+
+// Base path /api/v1 coerente con l’esempio nel tuo screen [file:17]
+const API_BASE = "/api/v1";
+
+// IMPORTANT: gli endpoint possono variare in base alla versione/provider.
+// Qui sono raggruppati in un oggetto per modificarli in 1 punto solo.
+const ENDPOINTS = {
+  // Tentativo “stile Sofascore”: /api/v1/sport/{sport}/scheduled-events/{YYYY-MM-DD}
+  // Se nel Playground RapidAPI è diverso, modifica QUI.
+  scheduledEvents: (sport, date) => `${API_BASE}/sport/${sport}/scheduled-events/${date}`,
+
+  // Dettaglio evento
+  event: (eventId) => `${API_BASE}/event/${eventId}`,
+
+  // Statistiche (non sempre disponibile per tutti gli sport; se 404, verrà ignorato)
+  eventStats: (eventId) => `${API_BASE}/event/${eventId}/statistics`,
+};
+
+// Key in localStorage (non inserita nel codice) [file:1]
+let RAPIDAPI_KEY = localStorage.getItem("RAPIDAPI_KEY") || "";
+
+function setStatus(msg) {
+  document.getElementById("statusLine").textContent = msg || "";
+}
+
+function promptKey() {
+  const k = prompt("Incolla la tua RapidAPI Key (verrà salvata in questo browser):", RAPIDAPI_KEY || "");
+  if (!k) return;
+  RAPIDAPI_KEY = k.trim();
+  localStorage.setItem("RAPIDAPI_KEY", RAPIDAPI_KEY);
+  setStatus("Key salvata nel browser.");
+}
+
+document.getElementById("btnKey").addEventListener("click", promptKey);
+
+document.getElementById("btnClearCache").addEventListener("click", () => {
+  // Pulisce key + cache
+  localStorage.removeItem("RAPIDAPI_KEY");
+  Object.keys(localStorage).forEach(k => { if (k.startsWith("bb_cache:")) localStorage.removeItem(k); });
+  RAPIDAPI_KEY = "";
+  state.matches = [];
+  state.selected = null;
+  state.error = null;
+  setStatus("Reset completato.");
+  render();
+});
+
+// Throttle + Retry 429 (riduce “raffiche” e aiuta con rate limit) [web:6]
+const MIN_GAP_MS = 650;
+let _lastReqTs = 0;
+async function throttle() {
+  const now = Date.now();
+  const wait = Math.max(0, MIN_GAP_MS - (now - _lastReqTs));
+  if (wait > 0) await new Promise(r => setTimeout(r, wait));
+  _lastReqTs = Date.now();
+}
+
+async function fetchWith429Retry(url, options, maxRetries = 4) {
+  let last = null;
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    await throttle();
+    const res = await fetch(url, options);
+    last = res;
+
+    if (res.status !== 429) return res;
+
+    const ra = res.headers.get("retry-after"); // standard, se presente
+    const retryAfterMs = ra ? (parseInt(ra, 10) * 1000) : 0;
+    const backoffMs = Math.round(900 * Math.pow(2, attempt)); // 0.9s, 1.8s, 3.6s...
+    const sleepMs = retryAfterMs > 0 ? retryAfterMs : backoffMs;
+    setStatus(`429: attendo ${Math.round(sleepMs/1000)}s e riprovo...`);
+    await new Promise(r => setTimeout(r, sleepMs));
+  }
+  return last;
+}
+
+const CACHE_TTL_MS = 45 * 1000;
+function cacheGet(key) {
+  try {
+    const raw = localStorage.getItem(key);
+    if (!raw) return null;
+    const obj = JSON.parse(raw);
+    if (!obj?.t) return null;
+    if ((Date.now() - obj.t) > CACHE_TTL_MS) return null;
+    return obj.v;
+  } catch { return null; }
+}
+function cacheSet(key, value) {
+  try { localStorage.setItem(key, JSON.stringify({t: Date.now(), v: value})); } catch {}
+}
+
+async function apiGet(path) {
+  if (!RAPIDAPI_KEY) throw new Error("RapidAPI Key mancante. Clicca 'Imposta Key'.");
+  const url = `https://${RAPIDAPI_HOST}${path}`;
+  const cacheKey = `bb_cache:${url}`;
+  const cached = cacheGet(cacheKey);
+  if (cached) return cached;
+
+  const res = await fetchWith429Retry(url, {
+    method: "GET",
+    headers: {
+      "X-RapidAPI-Key": RAPIDAPI_KEY,
+      "X-RapidAPI-Host": RAPIDAPI_HOST,
+    }
+  });
+
+  if (!res?.ok) {
+    let extra = "";
+    try { extra = (await res.text() || "").slice(0, 200); } catch {}
+    throw new Error(`HTTP ${res ? res.status : "?"}${extra ? " - " + extra : ""}`);
+  }
+
+  const data = await res.json();
+  cacheSet(cacheKey, data);
+  return data;
+}
+
+/* ============================================================
+   APP STATE + UI
+   ============================================================ */
+
+const state = {
+  sport: "football",
+  date: new Date().toISOString().slice(0,10),
+  loading: false,
+  error: null,
+  matches: [],
+  selected: null,
+};
+
+const sportMeta = {
+  football: { label: "Calcio", badge: "⚽", gradient: "from-emerald-400 to-cyan-500" },
+  basketball: { label: "Basket", badge: "🏀", gradient: "from-orange-400 to-yellow-500" },
+  tennis: { label: "Tennis", badge: "🎾", gradient: "from-purple-400 to-pink-500" },
+};
+
+document.getElementById("dateInput").value = state.date;
+document.getElementById("dateInput").addEventListener("change", (e) => {
+  state.date = e.target.value;
+});
+
+document.querySelectorAll(".sportBtn").forEach(btn => {
+  btn.addEventListener("click", () => {
+    state.sport = btn.dataset.sport;
+    state.matches = [];
+    state.selected = null;
+    state.error = null;
+    setStatus("");
+    updateHeader();
+    updateSportButtons();
+    render();
+  });
+});
+
+function updateHeader() {
+  const meta = sportMeta[state.sport];
+  const badge = document.getElementById("sportBadge");
+  badge.className = `w-10 h-10 rounded-xl bg-gradient-to-br ${meta.gradient} flex items-center justify-center text-black font-black`;
+  badge.textContent = meta.badge;
+}
+
+function updateSportButtons() {
+  document.querySelectorAll(".sportBtn").forEach(b => {
+    const on = b.dataset.sport === state.sport;
+    b.className = "sportBtn flex-1 py-2 rounded-lg text-xs font-bold " + (on
+      ? `bg-gradient-to-r ${sportMeta[state.sport].gradient} text-gray-900`
+      : "text-gray-300 hover:bg-white/5");
+  });
+}
+
+function confClass(v) {
+  if (v >= 65) return "conf-high";
+  if (v >= 52) return "conf-mid";
+  return "conf-low";
+}
+
+function fmtDate(tsSeconds) {
+  try {
+    if (!tsSeconds) return "--";
+    const d = new Date(tsSeconds * 1000);
+    return d.toLocaleString("it-IT", { weekday:"short", day:"2-digit", month:"2-digit", hour:"2-digit", minute:"2-digit" });
+  } catch { return "--"; }
+}
+
+function normalizeScheduledEventsResponse(data) {
+  // Molte API “stile Sofascore” tornano { events: [...] }
+  // Se la tua risposta è diversa, modifica qui.
+  const events = data?.events || data?.response || data?.data || [];
+  return Array.isArray(events) ? events : [];
+}
+
+function extractMatchModel(ev) {
+  // Mappa “tollerante” per non rompersi se cambiano i campi
+  const id = ev?.id ?? ev?.event?.id ?? ev?.fixture?.id ?? null;
+
+  const home = ev?.homeTeam?.name || ev?.home?.name || ev?.teams?.home?.name || ev?.player1?.name || "Home";
+  const away = ev?.awayTeam?.name || ev?.away?.name || ev?.teams?.away?.name || ev?.player2?.name || "Away";
+
+  const tournament = ev?.tournament?.name || ev?.league?.name || ev?.competition?.name || ev?.category?.name || "—";
+
+  const startTs = ev?.startTimestamp || ev?.startTime || ev?.fixture?.timestamp || null;
+
+  const homeLogo = ev?.homeTeam?.logo || ev?.homeTeam?.teamLogo || ev?.home?.logo || ev?.teams?.home?.logo || null;
+  const awayLogo = ev?.awayTeam?.logo || ev?.awayTeam?.teamLogo || ev?.away?.logo || ev?.teams?.away?.logo || null;
+
+  return { id, home, away, tournament, startTs, raw: ev, homeLogo, awayLogo };
+}
+
+/* ============================================================
+   MINI ANALISI (come nel tuo stile originale, ma senza dipendere dal provider)
+   ============================================================ */
+
+// DB “semplice” (puoi incollare i tuoi valori reali qui, se vuoi)
+const TEAMSTATS = {
+  "Juventus": { corners: 5.8, cornersAg: 4.2, cards: 2.1, cardsAg: 1.8, gf: 1.8, ga: 0.9, ggRate: 48 },
+  "Inter": { corners: 6.2, cornersAg: 3.8, cards: 1.9, cardsAg: 2.0, gf: 2.4, ga: 0.8, ggRate: 52 },
+  "Milan": { corners: 5.5, cornersAg: 4.5, cards: 2.3, cardsAg: 1.9, gf: 2.1, ga: 1.1, ggRate: 58 },
+};
+
+function getTeamStats(name) {
+  if (!name) return { corners: 5.0, cornersAg: 5.0, cards: 2.0, cardsAg: 2.0, gf: 1.3, ga: 1.3, ggRate: 50 };
+  const n = name.toLowerCase();
+  for (const [k, v] of Object.entries(TEAMSTATS)) {
+    const kk = k.toLowerCase();
+    if (n.includes(kk) || kk.includes(n)) return v;
+  }
+  return { corners: 5.0, cornersAg: 5.0, cards: 2.0, cardsAg: 2.0, gf: 1.3, ga: 1.3, ggRate: 50 };
+}
+
+function analyzeFootballMatch(home, away) {
+  const h = getTeamStats(home);
+  const a = getTeamStats(away);
+
+  const homeScoreProb = Math.min(95, (h.gf / 2.5) * 100);
+  const awayScoreProb = Math.min(95, (a.gf / 2.5) * 100);
+  const avgGGRate = (h.ggRate + a.ggRate) / 2;
+
+  let ggProb = (homeScoreProb * awayScoreProb / 100) * 0.5 + avgGGRate * 0.5;
+  ggProb = Math.max(25, Math.min(78, ggProb));
+
+  const homeGoalsExp = (h.gf * 1.05 + a.ga * 0.95) / 2;
+  const awayGoalsExp = (a.gf * 0.95 + h.ga * 1.05) / 2;
+  const totalGoalsExp = homeGoalsExp + awayGoalsExp;
+
+  const homeCornersExp = (h.corners * 1.08 + a.cornersAg * 0.92) / 2;
+  const awayCornersExp = (a.corners * 0.92 + h.cornersAg * 1.08) / 2;
+  const totalCornersExp = homeCornersExp + awayCornersExp;
+
+  const homeCardsExp = (h.cards * 0.88 + a.cardsAg * 1.12) / 2;
+  const awayCardsExp = (a.cards * 1.15 + h.cardsAg * 0.85) / 2;
+  const totalCardsExp = homeCardsExp + awayCardsExp;
+
+  const lines = (arr, baseConf, scale) => arr.map(line => ({
+    line,
+    pick: (scale > line) ? "OVER" : "UNDER",
+    conf: Math.min(85, baseConf + Math.abs(scale - line) * 10)
+  }));
+
+  return {
+    gg: { prob: ggProb, pick: ggProb >= 52 ? "GG" : "NG", conf: 45 + Math.abs(ggProb - 50) * 0.8 },
+    goals: { exp: totalGoalsExp, lines: lines([1.5,2.5,3.5], 48, totalGoalsExp) },
+    corners: { exp: totalCornersExp, lines: lines([8.5,9.5,10.5,11.5], 50, totalCornersExp) },
+    cards: { exp: totalCardsExp, lines: lines([3.5,4.5,5.5], 48, totalCardsExp) },
+  };
+}
+
+/* ============================================================
+   LOAD + RENDER
+   ============================================================ */
+
+async function loadMatches() {
+  if (state.loading) return;
+  state.loading = true;
+  state.error = null;
+  state.matches = [];
+  state.selected = null;
+  setStatus("Caricamento...");
+  render();
+
+  try {
+    const data = await apiGet(ENDPOINTS.scheduledEvents(state.sport, state.date));
+    const events = normalizeScheduledEventsResponse(data);
+    state.matches = events.map(extractMatchModel).filter(m => m.id != null || (m.home && m.away));
+    if (state.matches.length === 0) {
+      state.error = "Nessun evento trovato per questa data. (Controlla endpoint/abbonamento nel Playground.)";
+    } else {
+      setStatus(`Trovati: ${state.matches.length} eventi.`);
+    }
+  } catch (e) {
+    state.error = "Errore: " + (e?.message || String(e));
+    setStatus("");
+  } finally {
+    state.loading = false;
+    render();
+  }
+}
+
+document.getElementById("btnLoad").addEventListener("click", loadMatches);
+
+function renderList() {
+  const meta = sportMeta[state.sport];
+  const parts = [];
+
+  parts.push(`
+    <div class="flex items-center justify-between mb-3">
+      <h2 class="font-bold text-white">Eventi • ${meta.label}</h2>
+      <div class="text-xs text-gray-400">${state.date}</div>
+    </div>
+  `);
+
+  if (state.loading) {
+    parts.push(`
+      <div class="glass rounded-xl p-8 text-center">
+        <div class="w-10 h-10 border-4 border-cyan-400 border-t-transparent rounded-full loader mx-auto mb-3"></div>
+        <div class="text-gray-400 text-sm">Caricamento...</div>
+      </div>
+    `);
+    return parts.join("");
+  }
+
+  if (state.error) {
+    parts.push(`
+      <div class="glass rounded-xl p-6 text-center">
+        <div class="text-red-300 font-bold mb-2">${escapeHtml(state.error)}</div>
+        <div class="text-xs text-gray-500">Se vedi 429: attendi; se vedi 404/nessun evento: controlla ENDPOINTS.scheduledEvents.</div>
+      </div>
+    `);
+    return parts.join("");
+  }
+
+  if (!state.matches.length) {
+    parts.push(`
+      <div class="glass rounded-xl p-8 text-center">
+        <div class="text-gray-400 text-sm mb-2">Nessun evento caricato.</div>
+        <div class="text-xs text-gray-500">Clicca “Carica”.</div>
+      </div>
+    `);
+    return parts.join("");
+  }
+
+  parts.push(`<div class="space-y-2">`);
+  state.matches.forEach((m, i) => {
+    parts.push(`
+      <div class="glass rounded-xl p-3 match-card" data-id="${escapeHtml(String(m.id))}" style="animation-delay:${i*20}ms">
+        <div class="flex items-center justify-between mb-2">
+          <div class="text-[11px] text-cyan-300 font-medium truncate pr-2">${escapeHtml(m.tournament)}</div>
+          <div class="text-[11px] text-gray-500">${escapeHtml(fmtDate(m.startTs))}</div>
+        </div>
+        <div class="flex items-center justify-between gap-2">
+          <div class="flex items-center gap-2 min-w-0 flex-1">
+            ${m.homeLogo ? `<img src="${escapeAttr(m.homeLogo)}" class="w-7 h-7 rounded" />` : `<div class="w-7 h-7 rounded bg-white/5"></div>`}
+            <div class="font-bold text-white text-sm truncate">${escapeHtml(m.home)}</div>
+          </div>
+          <div class="text-gray-400 text-xs px-2">vs</div>
+          <div class="flex items-center gap-2 min-w-0 flex-1 justify-end">
+            <div class="font-bold text-white text-sm truncate text-right">${escapeHtml(m.away)}</div>
+            ${m.awayLogo ? `<img src="${escapeAttr(m.awayLogo)}" class="w-7 h-7 rounded" />` : `<div class="w-7 h-7 rounded bg-white/5"></div>`}
+          </div>
+        </div>
+        <div class="text-center mt-2 text-[11px] text-emerald-300">Clicca per analisi</div>
+      </div>
+    `);
+  });
+  parts.push(`</div>`);
+
+  return parts.join("");
+}
+
+async function loadSelectedDetails(eventId) {
+  if (!eventId) return;
+
+  state.loading = true;
+  state.error = null;
+  setStatus("Caricamento dettagli...");
+  render();
+
+  try {
+    const [eventData, statsData] = await Promise.allSettled([
+      apiGet(ENDPOINTS.event(eventId)),
+      apiGet(ENDPOINTS.eventStats(eventId)),
+    ]);
+
+    const ev = (eventData.status === "fulfilled") ? eventData.value : null;
+    const st = (statsData.status === "fulfilled") ? statsData.value : null;
+
+    // Tenta di estrarre campi dal dettaglio evento; fallback a quello della lista
+    const base = state.matches.find(x => String(x.id) === String(eventId));
+    const home = ev?.event?.homeTeam?.name || ev?.homeTeam?.name || base?.home || "Home";
+    const away = ev?.event?.awayTeam?.name || ev?.awayTeam?.name || base?.away || "Away";
+    const tournament = ev?.event?.tournament?.name || ev?.tournament?.name || base?.tournament || "—";
+    const startTs = ev?.event?.startTimestamp || ev?.startTimestamp || base?.startTs || null;
+
+    state.selected = {
+      id: eventId,
+      home, away, tournament, startTs,
+      rawEvent: ev,
+      rawStats: st,
+    };
+
+    setStatus("Dettagli caricati.");
+  } catch (e) {
+    state.error = "Errore dettagli: " + (e?.message || String(e));
+    state.selected = null;
+    setStatus("");
+  } finally {
+    state.loading = false;
+    render();
+  }
+}
+
+function renderSelected() {
+  const s = state.selected;
+  const meta = sportMeta[state.sport];
+
+  const dt = fmtDate(s.startTs);
+  let analysisHtml = "";
+
+  if (state.sport === "football") {
+    const a = analyzeFootballMatch(s.home, s.away);
+
+    analysisHtml = `
+      <div class="glass rounded-xl p-4 mb-3">
+        <div class="flex items-center justify-between mb-2">
+          <div class="font-bold">Goal/Goal</div>
+          <div class="text-xs text-gray-400">Prob. stimata</div>
+        </div>
+        <div class="grid grid-cols-2 gap-3">
+          <div class="bg-black/30 rounded-lg p-3 text-center ${a.gg.pick === "GG" ? "ring-2 ring-emerald-500" : ""}">
+            <div class="font-black text-xl text-white">GG</div>
+            <div class="text-xs ${confClass(a.gg.conf)}">${a.gg.prob.toFixed(0)}%</div>
+          </div>
+          <div class="bg-black/30 rounded-lg p-3 text-center ${a.gg.pick === "NG" ? "ring-2 ring-emerald-500" : ""}">
+            <div class="font-black text-xl text-white">NG</div>
+            <div class="text-xs ${confClass(100 - a.gg.conf)}">${(100-a.gg.prob).toFixed(0)}%</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="glass rounded-xl p-4 mb-3">
+        <div class="font-bold mb-2">Goals <span class="text-xs text-gray-400 font-normal ml-2">Exp ${a.goals.exp.toFixed(1)}</span></div>
+        <div class="space-y-2">
+          ${a.goals.lines.map(l => `
+            <div class="flex items-center justify-between bg-black/30 rounded-lg p-2">
+              <div class="text-sm text-gray-300">${l.pick} ${l.line}</div>
+              <div class="text-sm font-bold ${confClass(l.conf)}">${l.conf.toFixed(0)}</div>
+            </div>
+          `).join("")}
+        </div>
+      </div>
+
+      <div class="glass rounded-xl p-4 mb-3">
+        <div class="font-bold mb-2">Corner <span class="text-xs text-gray-400 font-normal ml-2">Exp ${a.corners.exp.toFixed(1)}</span></div>
+        <div class="space-y-2">
+          ${a.corners.lines.map(l => `
+            <div class="flex items-center justify-between bg-black/30 rounded-lg p-2">
+              <div class="text-sm text-gray-300">${l.pick} ${l.line}</div>
+              <div class="text-sm font-bold ${confClass(l.conf)}">${l.conf.toFixed(0)}</div>
+            </div>
+          `).join("")}
+        </div>
+      </div>
+
+      <div class="glass rounded-xl p-4">
+        <div class="font-bold mb-2">Cartellini <span class="text-xs text-gray-400 font-normal ml-2">Exp ${a.cards.exp.toFixed(1)}</span></div>
+        <div class="space-y-2">
+          ${a.cards.lines.map(l => `
+            <div class="flex items-center justify-between bg-black/30 rounded-lg p-2">
+              <div class="text-sm text-gray-300">${l.pick} ${l.line}</div>
+              <div class="text-sm font-bold ${confClass(l.conf)}">${l.conf.toFixed(0)}</div>
+            </div>
+          `).join("")}
+        </div>
+      </div>
+    `;
+  } else {
+    analysisHtml = `
+      <div class="glass rounded-xl p-4">
+        <div class="font-bold mb-2">Dettagli</div>
+        <div class="text-sm text-gray-300">Per Basket/Tennis la “mini analisi” non è implementata in questa versione.</div>
+        <div class="text-xs text-gray-500 mt-2">Se mi incolli un esempio di risposta JSON “event” e/o “scheduled-events” per basket/tennis, preparo le analisi dedicate.</div>
+      </div>
+    `;
+  }
+
+  const rawBox = `
+    <div class="glass rounded-xl p-4 mt-3">
+      <div class="flex items-center justify-between mb-2">
+        <div class="font-bold">Debug JSON</div>
+        <button id="btnToggleJson" class="glass px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-white/10">Mostra/Nascondi</button>
+      </div>
+      <pre id="jsonBox" class="hidden text-[11px] text-gray-300 overflow-auto max-h-80 bg-black/30 rounded-lg p-3"></pre>
+    </div>
+  `;
+
+  return `
+    <button id="btnBack" class="text-gray-300 hover:text-white text-sm mb-3">← Torna alla lista</button>
+
+    <div class="glass rounded-2xl p-4 mb-3">
+      <div class="flex items-center justify-between mb-2">
+        <div class="text-xs text-cyan-300 font-medium">${escapeHtml(s.tournament || meta.label)}</div>
+        <div class="text-xs text-gray-500">${escapeHtml(dt)}</div>
+      </div>
+      <div class="flex items-center justify-center gap-3">
+        <div class="font-black text-white text-base">${escapeHtml(s.home)}</div>
+        <div class="text-gray-400 font-bold">vs</div>
+        <div class="font-black text-white text-base">${escapeHtml(s.away)}</div>
+      </div>
+      <div class="text-[11px] text-gray-500 text-center mt-2">Event ID: ${escapeHtml(String(s.id))}</div>
+    </div>
+
+    ${analysisHtml}
+    ${rawBox}
+  `;
+}
+
+function escapeHtml(s) {
+  return String(s ?? "").replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m]));
+}
+function escapeAttr(s) { return escapeHtml(s).replace(/`/g, "&#096;"); }
+
+function bindListClicks() {
+  document.querySelectorAll(".match-card").forEach(el => {
+    el.addEventListener("click", () => {
+      const id = el.getAttribute("data-id");
+      loadSelectedDetails(id);
+    });
+  });
+}
+
+function bindSelectedHandlers() {
+  const back = document.getElementById("btnBack");
+  if (back) back.addEventListener("click", () => {
+    state.selected = null;
+    state.error = null;
+    setStatus("");
+    render();
+  });
+
+  const toggle = document.getElementById("btnToggleJson");
+  const box = document.getElementById("jsonBox");
+  if (toggle && box) {
+    toggle.addEventListener("click", () => {
+      box.classList.toggle("hidden");
+    });
+
+    const payload = {
+      event: state.selected?.rawEvent || null,
+      stats: state.selected?.rawStats || null,
+    };
+    box.textContent = JSON.stringify(payload, null, 2);
+  }
+}
+
+function render() {
+  const content = document.getElementById("content");
+  if (state.selected) {
+    content.innerHTML = renderSelected();
+    bindSelectedHandlers();
+    return;
+  }
+  content.innerHTML = renderList();
+  bindListClicks();
+}
+
+updateHeader();
+updateSportButtons();
+render();
+</script>
 </body>
 </html>
