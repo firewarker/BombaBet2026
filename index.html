@@ -1,1043 +1,1184 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="it">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>🎯 BOMBA BET PRO</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
-    
-    <!-- FIREBASE SDK -->
-    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js"></script>
-    
-    <style>
-        * { font-family: 'Outfit', sans-serif; box-sizing: border-box; }
-        
-        :root {
-            --bg-primary: #0f0f1a;
-            --bg-secondary: #1a1a2e;
-            --bg-card: rgba(26, 26, 46, 0.8);
-            --accent-green: #00f5a0;
-            --accent-blue: #00d9f5;
-            --accent-purple: #bd00ff;
-            --accent-orange: #ff6b35;
-            --accent-yellow: #f5c800;
-            --text-primary: #ffffff;
-            --text-secondary: #a0a0b0;
-        }
-        
-        body { 
-            background: linear-gradient(135deg, var(--bg-primary) 0%, #16162a 50%, var(--bg-primary) 100%);
-            color: var(--text-primary); 
-            min-height: 100vh;
-        }
-        
-        .bg-noise {
-            background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E");
-            opacity: 0.03;
-            position: fixed;
-            inset: 0;
-            pointer-events: none;
-            z-index: 0;
-        }
-        
-        .glass { 
-            background: var(--bg-card); 
-            backdrop-filter: blur(20px); 
-            border: 1px solid rgba(255,255,255,0.05);
-            border-radius: 16px;
-        }
-        
-        .glass-strong {
-            background: linear-gradient(135deg, rgba(0,245,160,0.1) 0%, rgba(0,217,245,0.05) 100%);
-            backdrop-filter: blur(20px);
-            border: 1px solid rgba(0,245,160,0.2);
-            border-radius: 20px;
-        }
-        
-        .glow-green { box-shadow: 0 0 40px rgba(0,245,160,0.2), inset 0 0 40px rgba(0,245,160,0.05); }
-        .glow-blue { box-shadow: 0 0 40px rgba(0,217,245,0.2); }
-        .glow-purple { box-shadow: 0 0 40px rgba(189,0,255,0.2); }
-        .glow-orange { box-shadow: 0 0 40px rgba(255,107,53,0.2); }
-        
-        .gradient-text { 
-            background: linear-gradient(135deg, var(--accent-green), var(--accent-blue)); 
-            -webkit-background-clip: text; 
-            -webkit-text-fill-color: transparent; 
-        }
-        
-        .gradient-btn {
-            background: linear-gradient(135deg, var(--accent-green), var(--accent-blue));
-            transition: all 0.3s ease;
-        }
-        .gradient-btn:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 10px 30px rgba(0,245,160,0.3);
-        }
-        
-        .loader { animation: spin 1s linear infinite; }
-        @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
-        
-        .slide-up { animation: slideUp 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards; opacity: 0; }
-        @keyframes slideUp { 
-            from { transform: translateY(30px); opacity: 0; } 
-            to { transform: translateY(0); opacity: 1; } 
-        }
-        
-        .pulse-dot {
-            animation: pulse 2s ease-in-out infinite;
-        }
-        @keyframes pulse {
-            0%, 100% { opacity: 1; transform: scale(1); }
-            50% { opacity: 0.5; transform: scale(1.2); }
-        }
-        
-        select, input { 
-            background: rgba(255,255,255,0.05); 
-            border: 1px solid rgba(255,255,255,0.1); 
-            color: white; 
-            border-radius: 12px;
-            padding: 8px 12px;
-        }
-        
-        ::-webkit-scrollbar { width: 6px; height: 6px; }
-        ::-webkit-scrollbar-track { background: transparent; }
-        ::-webkit-scrollbar-thumb { background: var(--accent-green); border-radius: 3px; }
-        
-        .match-card { 
-            transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
-            cursor: pointer;
-        }
-        .match-card:hover { 
-            transform: translateY(-4px) scale(1.01);
-            border-color: rgba(0,245,160,0.3);
-            box-shadow: 0 20px 40px rgba(0,0,0,0.3);
-        }
-        
-        .stat-badge {
-            background: linear-gradient(135deg, rgba(0,245,160,0.2), rgba(0,217,245,0.1));
-            border: 1px solid rgba(0,245,160,0.3);
-            padding: 4px 12px;
-            border-radius: 20px;
-            font-size: 12px;
-            font-weight: 600;
-        }
-        
-        .pick-card {
-            background: linear-gradient(135deg, rgba(26,26,46,0.9), rgba(26,26,46,0.7));
-            border: 1px solid rgba(255,255,255,0.05);
-            border-radius: 12px;
-            padding: 12px;
-            transition: all 0.2s ease;
-        }
-        .pick-card:hover {
-            border-color: rgba(0,245,160,0.3);
-        }
-        
-        .conf-badge {
-            padding: 4px 10px;
-            border-radius: 8px;
-            font-size: 11px;
-            font-weight: 700;
-        }
-        .conf-high { background: rgba(0,245,160,0.2); color: #00f5a0; }
-        .conf-mid { background: rgba(245,200,0,0.2); color: #f5c800; }
-        .conf-low { background: rgba(255,107,53,0.2); color: #ff6b35; }
-        
-        .tab-btn {
-            padding: 12px 20px;
-            border-radius: 12px;
-            font-weight: 600;
-            transition: all 0.3s ease;
-        }
-        .tab-btn.active {
-            background: linear-gradient(135deg, var(--accent-green), var(--accent-blue));
-            color: #0f0f1a;
-        }
-        .tab-btn:not(.active) {
-            background: rgba(255,255,255,0.05);
-            color: var(--text-secondary);
-        }
-        
-        .league-chip {
-            padding: 8px 14px;
-            border-radius: 10px;
-            font-weight: 600;
-            font-size: 13px;
-            transition: all 0.2s ease;
-            white-space: nowrap;
-        }
-        .league-chip.active {
-            background: linear-gradient(135deg, var(--accent-green), var(--accent-blue));
-            color: #0f0f1a;
-        }
-        .league-chip:not(.active) {
-            background: rgba(255,255,255,0.05);
-            color: var(--text-secondary);
-        }
-        .league-chip:hover:not(.active) {
-            background: rgba(255,255,255,0.1);
-        }
-        
-        .result-won { background: rgba(0,245,160,0.1); border-color: rgba(0,245,160,0.3); }
-        .result-lost { background: rgba(255,107,53,0.1); border-color: rgba(255,107,53,0.3); }
-    </style>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>BOMBA BET PRO - SportAPI7</title>
+
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+
+  <style>
+    * { font-family: Inter, ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial; }
+    body {
+      min-height: 100vh;
+      color: #e5e7eb;
+      background:
+        radial-gradient(800px 500px at 20% 15%, rgba(34,197,94,0.25), transparent 60%),
+        radial-gradient(700px 450px at 80% 25%, rgba(6,182,212,0.25), transparent 60%),
+        radial-gradient(700px 450px at 70% 80%, rgba(168,85,247,0.22), transparent 60%),
+        radial-gradient(600px 400px at 15% 85%, rgba(249,115,22,0.18), transparent 60%),
+        linear-gradient(135deg, #0b1020 0%, #020617 65%, #010409 100%);
+      overflow-x: hidden;
+    }
+    .glass {
+      background: rgba(15, 23, 42, 0.82);
+      backdrop-filter: blur(20px);
+      border: 1px solid rgba(148,163,184,0.22);
+      box-shadow: 0 25px 50px -12px rgba(0,0,0,0.6);
+    }
+    .glass2 {
+      background: rgba(2, 6, 23, 0.55);
+      backdrop-filter: blur(22px);
+      border: 1px solid rgba(148,163,184,0.18);
+    }
+    .chip { border: 1px solid rgba(148,163,184,0.22); background: rgba(255,255,255,0.04); }
+    .soft-border { border: 1px solid rgba(255,255,255,0.08); }
+    .match-card { transition: transform .15s ease, background .15s ease; }
+    .match-card:hover { transform: translateY(-2px); background: rgba(255,255,255,0.06); cursor: pointer; }
+    .loader { animation: spin 1s linear infinite; }
+    @keyframes spin { from { transform: rotate(0deg);} to { transform: rotate(360deg);} }
+    .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; }
+
+    .conf-high { color: #34d399; }
+    .conf-mid  { color: #fbbf24; }
+    .conf-low  { color: #fb7185; }
+
+    .btn {
+      border: 1px solid rgba(148,163,184,0.22);
+      background: rgba(255,255,255,0.04);
+      transition: transform .12s ease, background .12s ease, opacity .12s ease;
+    }
+    .btn:hover { background: rgba(255,255,255,0.08); transform: translateY(-1px); }
+    .btn:disabled { opacity: .55; cursor: not-allowed; transform: none; }
+
+    .grad-green { background-image: linear-gradient(135deg, rgba(34,197,94,1), rgba(6,182,212,1)); }
+    .grad-orange { background-image: linear-gradient(135deg, rgba(249,115,22,1), rgba(245,158,11,1)); }
+    .grad-purple { background-image: linear-gradient(135deg, rgba(168,85,247,1), rgba(236,72,153,1)); }
+
+    .pulse {
+      box-shadow: 0 0 0 0 rgba(6,182,212,0.55);
+      animation: pulse 2.4s infinite;
+    }
+    @keyframes pulse {
+      0% { box-shadow: 0 0 0 0 rgba(6,182,212,0.40); }
+      70% { box-shadow: 0 0 0 18px rgba(6,182,212,0); }
+      100% { box-shadow: 0 0 0 0 rgba(6,182,212,0); }
+    }
+  </style>
 </head>
+
 <body>
-    <div class="bg-noise"></div>
-    <div id="root" class="relative z-10"></div>
+  <div class="max-w-6xl mx-auto min-h-screen flex flex-col">
 
-    <script>
-        // ============================================================
-        // 🎯 BOMBA BET V10 - PRO EDITION
-        // ============================================================
-        // ✅ Solo Calcio - GG, Corner, Cartellini
-        // ✅ Corner/Cards: Totale + Casa + Ospite
-        // ✅ Storico Partite con Risultati
-        // ✅ Grafica Premium
-        // ============================================================
+    <!-- HEADER -->
+    <header class="glass sticky top-0 z-50 border-b border-white/10">
+      <div class="px-5 py-4 flex items-center justify-between gap-4">
+        <div class="flex items-center gap-4 min-w-0">
+          <div id="sportBadge" class="w-14 h-14 rounded-2xl grad-green flex items-center justify-center text-gray-900 font-black text-2xl pulse">
+            ⚽
+          </div>
+          <div class="min-w-0">
+            <div class="text-2xl font-black tracking-tight text-white">BOMBA BET <span class="text-cyan-300">PRO</span></div>
+            <div class="text-sm text-gray-300 truncate">SportAPI7 • GG + Corner/Cartellini • Storico & Hit-rate</div>
+          </div>
+        </div>
 
-        // 🔥 FIREBASE CONFIG
-        const firebaseConfig = {
-            apiKey: "AIzaSyAzXGyOUDeok9zHZ3Lrqplb9I4u2xxGsPY",
-            authDomain: "bombabet26.firebaseapp.com",
-            databaseURL: "https://bombabet26-default-rtdb.europe-west1.firebasedatabase.app",
-            projectId: "bombabet26",
-            storageBucket: "bombabet26.firebasestorage.app",
-            messagingSenderId: "765939756236",
-            appId: "1:765939756236:web:e071a398659e1171fc2669"
-        };
+        <div class="flex items-center gap-2 flex-wrap justify-end">
+          <div class="hidden md:flex items-center gap-2 px-3 py-2 rounded-xl glass2">
+            <div class="text-xs text-gray-400">Hit</div>
+            <div id="uiHit" class="text-sm font-black text-cyan-300">0%</div>
+            <div class="w-px h-4 bg-white/10"></div>
+            <div class="text-xs text-gray-400">Tot</div>
+            <div id="uiTot" class="text-sm font-black text-white">0</div>
+            <div class="w-px h-4 bg-white/10"></div>
+            <div class="text-xs text-gray-400">V/P</div>
+            <div id="uiWL" class="text-sm font-black text-white">0/0</div>
+          </div>
 
-        // 🔑 RAPIDAPI KEY
-        const RAPIDAPI_KEY = "f5cd8f40a3msh8b0c259403bcc6dp169c83jsn1d5284779ac4";
-        const API_HOST = "api-football-v1.p.rapidapi.com";
+          <button id="btnKey" class="btn px-4 py-2 rounded-xl text-sm font-bold">🔑 Key</button>
+          <button id="btnToggleSettings" class="btn px-4 py-2 rounded-xl text-sm font-bold">⚙️ API</button>
+          <button id="btnResetAll" class="btn px-4 py-2 rounded-xl text-sm font-bold text-orange-300">🗑️ Reset</button>
+        </div>
+      </div>
 
-        // Initialize Firebase
-        let auth, database;
-        try {
-            firebase.initializeApp(firebaseConfig);
-            auth = firebase.auth();
-            database = firebase.database();
-        } catch (e) { console.error('Firebase init error:', e); }
+      <div class="px-5 pb-4">
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-3">
+          <div class="glass2 rounded-2xl p-4">
+            <div class="text-[11px] uppercase tracking-wider text-gray-400 font-bold">Sport</div>
+            <div class="flex gap-2 mt-2 flex-wrap">
+              <button class="sportBtn btn px-4 py-2 rounded-xl text-sm font-bold grad-green text-gray-900" data-sport="football">⚽ Calcio</button>
+              <button class="sportBtn btn px-4 py-2 rounded-xl text-sm font-bold" data-sport="basketball">🏀 Basket</button>
+              <button class="sportBtn btn px-4 py-2 rounded-xl text-sm font-bold" data-sport="tennis">🎾 Tennis</button>
+            </div>
+            <div class="text-xs text-gray-400 mt-3">
+              Nota: analisi avanzata disponibile solo per Calcio in questa versione.
+            </div>
+          </div>
 
-        // ============================================================
-        // 🏆 CAMPIONATI
-        // ============================================================
-        
-        const FOOTBALL_LEAGUES = {
-            135: { name: "Serie A", flag: "🇮🇹", country: "Italy" },
-            39: { name: "Premier League", flag: "🏴󠁧󠁢󠁥󠁮󠁧󠁿", country: "England" },
-            140: { name: "La Liga", flag: "🇪🇸", country: "Spain" },
-            78: { name: "Bundesliga", flag: "🇩🇪", country: "Germany" },
-            61: { name: "Ligue 1", flag: "🇫🇷", country: "France" },
-            136: { name: "Serie B", flag: "🇮🇹", country: "Italy" },
-            40: { name: "Championship", flag: "🏴󠁧󠁢󠁥󠁮󠁧󠁿", country: "England" },
-            88: { name: "Eredivisie", flag: "🇳🇱", country: "Netherlands" },
-            94: { name: "Primeira Liga", flag: "🇵🇹", country: "Portugal" },
-            144: { name: "Jupiler Pro", flag: "🇧🇪", country: "Belgium" },
-            203: { name: "Super Lig", flag: "🇹🇷", country: "Turkey" },
-            2: { name: "Champions League", flag: "🏆", country: "Europe" },
-            3: { name: "Europa League", flag: "🏆", country: "Europe" },
-            848: { name: "Conference League", flag: "🏆", country: "Europe" }
-        };
+          <div class="glass2 rounded-2xl p-4">
+            <div class="text-[11px] uppercase tracking-wider text-gray-400 font-bold">Data & Caricamento</div>
+            <div class="flex gap-2 mt-2 items-center">
+              <input id="dateInput" type="date" class="w-full px-4 py-2 rounded-xl bg-black/20 soft-border text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500/30">
+              <button id="btnLoad" class="px-5 py-2 rounded-xl font-black text-sm text-gray-900 grad-green hover:opacity-95 transition btn">Carica</button>
+            </div>
+            <div id="statusLine" class="text-xs text-gray-400 mt-3"></div>
+          </div>
 
-        // ============================================================
-        // 📊 DATABASE STATISTICHE SQUADRE
-        // ============================================================
-        
-        const TEAM_STATS = {
-            // SERIE A
-            'Juventus': { corners: 5.8, cornersAg: 4.2, cards: 2.1, cardsAg: 1.8, ggRate: 48 },
-            'Inter': { corners: 6.2, cornersAg: 3.8, cards: 1.9, cardsAg: 2.0, ggRate: 55 },
-            'Milan': { corners: 5.5, cornersAg: 4.5, cards: 2.3, cardsAg: 1.9, ggRate: 58 },
-            'AC Milan': { corners: 5.5, cornersAg: 4.5, cards: 2.3, cardsAg: 1.9, ggRate: 58 },
-            'Napoli': { corners: 5.9, cornersAg: 4.0, cards: 2.0, cardsAg: 2.1, ggRate: 55 },
-            'Roma': { corners: 5.3, cornersAg: 4.8, cards: 2.4, cardsAg: 2.0, ggRate: 52 },
-            'AS Roma': { corners: 5.3, cornersAg: 4.8, cards: 2.4, cardsAg: 2.0, ggRate: 52 },
-            'Lazio': { corners: 5.4, cornersAg: 4.6, cards: 2.2, cardsAg: 2.2, ggRate: 60 },
-            'Atalanta': { corners: 6.0, cornersAg: 4.1, cards: 2.1, cardsAg: 1.8, ggRate: 65 },
-            'Fiorentina': { corners: 5.2, cornersAg: 4.9, cards: 2.3, cardsAg: 2.1, ggRate: 55 },
-            'Bologna': { corners: 5.1, cornersAg: 5.0, cards: 2.0, cardsAg: 2.3, ggRate: 50 },
-            'Torino': { corners: 4.8, cornersAg: 5.2, cards: 2.4, cardsAg: 2.0, ggRate: 52 },
-            'Monza': { corners: 4.5, cornersAg: 5.5, cards: 2.2, cardsAg: 2.1, ggRate: 48 },
-            'Udinese': { corners: 4.6, cornersAg: 5.3, cards: 2.3, cardsAg: 2.0, ggRate: 45 },
-            'Genoa': { corners: 4.4, cornersAg: 5.6, cards: 2.5, cardsAg: 1.9, ggRate: 42 },
-            'Cagliari': { corners: 4.3, cornersAg: 5.7, cards: 2.4, cardsAg: 2.2, ggRate: 48 },
-            'Empoli': { corners: 4.2, cornersAg: 5.8, cards: 2.1, cardsAg: 2.3, ggRate: 40 },
-            'Parma': { corners: 4.5, cornersAg: 5.5, cards: 2.2, cardsAg: 2.1, ggRate: 50 },
-            'Verona': { corners: 4.4, cornersAg: 5.6, cards: 2.3, cardsAg: 2.0, ggRate: 52 },
-            'Hellas Verona': { corners: 4.4, cornersAg: 5.6, cards: 2.3, cardsAg: 2.0, ggRate: 52 },
-            'Como': { corners: 4.3, cornersAg: 5.7, cards: 2.0, cardsAg: 2.2, ggRate: 45 },
-            'Lecce': { corners: 4.1, cornersAg: 5.9, cards: 2.4, cardsAg: 2.1, ggRate: 38 },
-            'Venezia': { corners: 4.0, cornersAg: 6.0, cards: 2.2, cardsAg: 2.3, ggRate: 42 },
-            // PREMIER LEAGUE
-            'Manchester City': { corners: 7.2, cornersAg: 3.1, cards: 1.5, cardsAg: 1.8, ggRate: 48 },
-            'Arsenal': { corners: 6.5, cornersAg: 3.8, cards: 1.7, cardsAg: 1.9, ggRate: 52 },
-            'Liverpool': { corners: 6.8, cornersAg: 3.5, cards: 1.6, cardsAg: 2.0, ggRate: 58 },
-            'Chelsea': { corners: 5.8, cornersAg: 4.2, cards: 1.9, cardsAg: 1.8, ggRate: 55 },
-            'Manchester United': { corners: 5.5, cornersAg: 4.8, cards: 2.0, cardsAg: 1.7, ggRate: 58 },
-            'Tottenham': { corners: 5.9, cornersAg: 4.5, cards: 1.8, cardsAg: 2.1, ggRate: 62 },
-            'Newcastle': { corners: 5.6, cornersAg: 4.6, cards: 1.9, cardsAg: 1.9, ggRate: 52 },
-            'Aston Villa': { corners: 5.4, cornersAg: 4.8, cards: 2.0, cardsAg: 1.8, ggRate: 58 },
-            'Brighton': { corners: 5.3, cornersAg: 4.7, cards: 1.8, cardsAg: 2.0, ggRate: 55 },
-            'West Ham': { corners: 5.0, cornersAg: 5.0, cards: 2.1, cardsAg: 1.9, ggRate: 52 },
-            'Bournemouth': { corners: 4.8, cornersAg: 5.2, cards: 2.0, cardsAg: 2.0, ggRate: 50 },
-            'Fulham': { corners: 4.9, cornersAg: 5.1, cards: 2.1, cardsAg: 1.9, ggRate: 48 },
-            'Crystal Palace': { corners: 4.7, cornersAg: 5.3, cards: 2.2, cardsAg: 1.8, ggRate: 45 },
-            'Wolves': { corners: 4.6, cornersAg: 5.4, cards: 2.3, cardsAg: 1.9, ggRate: 42 },
-            'Everton': { corners: 4.5, cornersAg: 5.5, cards: 2.2, cardsAg: 2.0, ggRate: 40 },
-            'Brentford': { corners: 4.8, cornersAg: 5.2, cards: 2.0, cardsAg: 2.1, ggRate: 55 },
-            'Nottingham Forest': { corners: 4.4, cornersAg: 5.6, cards: 2.1, cardsAg: 2.0, ggRate: 45 },
-            // LA LIGA
-            'Real Madrid': { corners: 6.8, cornersAg: 3.2, cards: 2.0, cardsAg: 2.4, ggRate: 50 },
-            'Barcelona': { corners: 7.0, cornersAg: 3.0, cards: 1.8, cardsAg: 2.5, ggRate: 55 },
-            'Atletico Madrid': { corners: 5.2, cornersAg: 4.0, cards: 2.8, cardsAg: 2.2, ggRate: 42 },
-            'Athletic Bilbao': { corners: 5.5, cornersAg: 4.5, cards: 2.5, cardsAg: 2.3, ggRate: 48 },
-            'Athletic Club': { corners: 5.5, cornersAg: 4.5, cards: 2.5, cardsAg: 2.3, ggRate: 48 },
-            'Real Sociedad': { corners: 5.3, cornersAg: 4.8, cards: 2.3, cardsAg: 2.4, ggRate: 50 },
-            'Villarreal': { corners: 5.6, cornersAg: 4.6, cards: 2.2, cardsAg: 2.5, ggRate: 55 },
-            'Sevilla': { corners: 5.4, cornersAg: 4.6, cards: 2.4, cardsAg: 2.3, ggRate: 48 },
-            'Real Betis': { corners: 5.2, cornersAg: 4.8, cards: 2.3, cardsAg: 2.2, ggRate: 52 },
-            // BUNDESLIGA
-            'Bayern Munich': { corners: 7.5, cornersAg: 2.8, cards: 1.4, cardsAg: 1.9, ggRate: 62 },
-            'Bayern': { corners: 7.5, cornersAg: 2.8, cards: 1.4, cardsAg: 1.9, ggRate: 62 },
-            'Bayer Leverkusen': { corners: 6.8, cornersAg: 3.2, cards: 1.6, cardsAg: 1.8, ggRate: 55 },
-            'Leverkusen': { corners: 6.8, cornersAg: 3.2, cards: 1.6, cardsAg: 1.8, ggRate: 55 },
-            'Borussia Dortmund': { corners: 6.2, cornersAg: 4.0, cards: 1.7, cardsAg: 1.7, ggRate: 65 },
-            'Dortmund': { corners: 6.2, cornersAg: 4.0, cards: 1.7, cardsAg: 1.7, ggRate: 65 },
-            'RB Leipzig': { corners: 5.9, cornersAg: 4.3, cards: 1.8, cardsAg: 1.8, ggRate: 58 },
-            'Leipzig': { corners: 5.9, cornersAg: 4.3, cards: 1.8, cardsAg: 1.8, ggRate: 58 },
-            'Stuttgart': { corners: 5.5, cornersAg: 4.8, cards: 1.9, cardsAg: 1.6, ggRate: 65 },
-            'Eintracht Frankfurt': { corners: 5.4, cornersAg: 4.6, cards: 2.0, cardsAg: 1.9, ggRate: 58 },
-            'Frankfurt': { corners: 5.4, cornersAg: 4.6, cards: 2.0, cardsAg: 1.9, ggRate: 58 },
-            // LIGUE 1
-            'PSG': { corners: 7.8, cornersAg: 2.5, cards: 1.6, cardsAg: 2.2, ggRate: 45 },
-            'Paris Saint Germain': { corners: 7.8, cornersAg: 2.5, cards: 1.6, cardsAg: 2.2, ggRate: 45 },
-            'Monaco': { corners: 5.8, cornersAg: 4.2, cards: 1.9, cardsAg: 2.0, ggRate: 58 },
-            'Marseille': { corners: 5.5, cornersAg: 4.6, cards: 2.2, cardsAg: 2.1, ggRate: 55 },
-            'Lyon': { corners: 5.6, cornersAg: 4.5, cards: 2.0, cardsAg: 2.2, ggRate: 58 },
-            'Lille': { corners: 5.2, cornersAg: 4.9, cards: 2.1, cardsAg: 2.0, ggRate: 48 },
-            // ALTRI
-            'Ajax': { corners: 6.5, cornersAg: 3.5, cards: 1.8, cardsAg: 2.0, ggRate: 65 },
-            'PSV': { corners: 6.8, cornersAg: 3.2, cards: 1.6, cardsAg: 1.8, ggRate: 62 },
-            'PSV Eindhoven': { corners: 6.8, cornersAg: 3.2, cards: 1.6, cardsAg: 1.8, ggRate: 62 },
-            'Feyenoord': { corners: 6.0, cornersAg: 4.0, cards: 2.0, cardsAg: 1.9, ggRate: 68 },
-            'Benfica': { corners: 6.5, cornersAg: 3.5, cards: 1.9, cardsAg: 2.1, ggRate: 58 },
-            'Porto': { corners: 6.2, cornersAg: 3.8, cards: 2.1, cardsAg: 2.0, ggRate: 52 },
-            'Sporting CP': { corners: 6.0, cornersAg: 4.0, cards: 1.8, cardsAg: 2.2, ggRate: 55 },
-            'Sporting': { corners: 6.0, cornersAg: 4.0, cards: 1.8, cardsAg: 2.2, ggRate: 55 }
-        };
+          <div class="glass2 rounded-2xl p-4">
+            <div class="text-[11px] uppercase tracking-wider text-gray-400 font-bold">Schermata</div>
+            <div class="flex gap-2 mt-2">
+              <button class="tabBtn btn px-4 py-2 rounded-xl text-sm font-bold grad-purple text-white" data-tab="matches">📋 Partite</button>
+              <button class="tabBtn btn px-4 py-2 rounded-xl text-sm font-bold" data-tab="history">📈 Storico</button>
+              <button class="tabBtn btn px-4 py-2 rounded-xl text-sm font-bold" data-tab="debug">🧪 Debug</button>
+            </div>
+            <div class="text-xs text-gray-400 mt-3">
+              Lo storico salva i pronostici selezionati e ti fa segnare Vinta/Persa.
+            </div>
+          </div>
+        </div>
 
-        // ============================================================
-        // STATE
-        // ============================================================
+        <!-- SETTINGS PANEL -->
+        <div id="settingsPanel" class="hidden mt-3 glass2 rounded-2xl p-4">
+          <div class="flex items-start justify-between gap-3">
+            <div>
+              <div class="font-black text-white">Impostazioni SportAPI7</div>
+              <div class="text-xs text-gray-400 mt-1">
+                Host predefinito: <span class="mono text-cyan-300">sportapi7.p.rapidapi.com</span> e base <span class="mono text-cyan-300">/api/v1</span>.
+              </div>
+            </div>
+            <button id="btnCloseSettings" class="btn px-3 py-2 rounded-xl text-sm font-bold">Chiudi</button>
+          </div>
 
-        let state = {
-            user: null,
-            authLoading: true,
-            activeTab: 'matches',
-            selectedLeague: 135,
-            matches: [],
-            selectedMatch: null,
-            loading: false,
-            error: null,
-            history: [],
-            pastMatches: [],
-            syncStatus: 'offline'
-        };
+          <div class="grid grid-cols-1 lg:grid-cols-3 gap-3 mt-4">
+            <div class="glass rounded-2xl p-4">
+              <div class="text-xs text-gray-400 font-bold uppercase tracking-wider">Endpoint lista eventi</div>
+              <div class="text-xs text-gray-300 mt-2">
+                Modifica solo se nel Playground RapidAPI il path è diverso.
+              </div>
+              <input id="epScheduled" class="mt-3 w-full px-3 py-2 rounded-xl bg-black/30 soft-border text-xs mono"
+                placeholder="/api/v1/sport/{sport}/scheduled-events/{YYYY-MM-DD}">
+              <div class="text-[11px] text-gray-500 mt-2">
+                Placeholder: <span class="mono">{sport}</span> e <span class="mono">{date}</span>
+              </div>
+            </div>
 
-        // ============================================================
-        // FIREBASE
-        // ============================================================
+            <div class="glass rounded-2xl p-4">
+              <div class="text-xs text-gray-400 font-bold uppercase tracking-wider">Endpoint evento</div>
+              <input id="epEvent" class="mt-3 w-full px-3 py-2 rounded-xl bg-black/30 soft-border text-xs mono"
+                placeholder="/api/v1/event/{id}">
+              <div class="text-[11px] text-gray-500 mt-2">
+                Placeholder: <span class="mono">{id}</span>
+              </div>
+            </div>
 
-        function setupAuthListener() {
-            if (!auth) {
-                state.authLoading = false;
-                state.history = JSON.parse(localStorage.getItem('bombaBetHistory') || '[]');
-                render();
-                return;
-            }
-            
-            auth.onAuthStateChanged((user) => {
-                state.user = user;
-                state.authLoading = false;
-                if (user) {
-                    loadCloudHistory();
-                    setupRealtimeSync();
-                } else {
-                    state.history = JSON.parse(localStorage.getItem('bombaBetHistory') || '[]');
-                    state.syncStatus = 'offline';
-                }
-                render();
-            });
-        }
+            <div class="glass rounded-2xl p-4">
+              <div class="text-xs text-gray-400 font-bold uppercase tracking-wider">Endpoint statistiche (opz.)</div>
+              <input id="epStats" class="mt-3 w-full px-3 py-2 rounded-xl bg-black/30 soft-border text-xs mono"
+                placeholder="/api/v1/event/{id}/statistics">
+              <div class="text-[11px] text-gray-500 mt-2">
+                Se 404 non è un problema: verrà ignorato.
+              </div>
+            </div>
+          </div>
 
-        async function signInWithGoogle() {
-            try {
-                await auth.signInWithPopup(new firebase.auth.GoogleAuthProvider());
-            } catch (e) { alert('Errore login: ' + e.message); }
-        }
+          <div class="flex gap-2 mt-4 flex-wrap">
+            <button id="btnSaveSettings" class="btn px-4 py-2 rounded-xl font-bold text-sm grad-green text-gray-900">Salva</button>
+            <button id="btnRestoreSettings" class="btn px-4 py-2 rounded-xl font-bold text-sm">Ripristina default</button>
+          </div>
+        </div>
+      </div>
+    </header>
 
-        async function signOut() {
-            await auth.signOut();
-            state.user = null;
-            state.history = [];
-            render();
-        }
+    <!-- CONTENT -->
+    <main class="flex-1 p-5 pb-14">
+      <div id="content"></div>
+    </main>
 
-        async function loadCloudHistory() {
-            state.syncStatus = 'syncing';
-            try {
-                const snapshot = await database.ref(`users/${state.user.uid}/history`).once('value');
-                state.history = snapshot.val() ? Object.values(snapshot.val()) : [];
-                state.syncStatus = 'synced';
-            } catch (e) { state.syncStatus = 'offline'; }
-            render();
-        }
+    <footer class="px-5 pb-8 text-xs text-gray-500 text-center">
+      <div>Anti-429 con throttle + retry (se presente usa anche Retry-After). [web:70]</div>
+      <div>Storico e statistiche salvate nel browser tramite localStorage. [web:80]</div>
+    </footer>
+  </div>
 
-        function setupRealtimeSync() {
-            database.ref(`users/${state.user.uid}/history`).on('value', (snapshot) => {
-                state.history = snapshot.val() ? Object.values(snapshot.val()) : [];
-                state.syncStatus = 'synced';
-                render();
-            });
-        }
+<script>
+/* ============================================================
+   CONFIG + STORAGE KEYS
+   ============================================================ */
 
-        async function saveToCloud(entry) {
-            if (database && state.user) {
-                await database.ref(`users/${state.user.uid}/history/${entry.id}`).set(entry);
-            } else {
-                state.history.unshift(entry);
-                localStorage.setItem('bombaBetHistory', JSON.stringify(state.history));
-            }
-            render();
-        }
+const RAPIDAPI_HOST = "sportapi7.p.rapidapi.com"; // dallo screen [file:17]
+const DEFAULT_ENDPOINTS = {
+  scheduled: "/api/v1/sport/{sport}/scheduled-events/{date}",
+  event: "/api/v1/event/{id}",
+  stats: "/api/v1/event/{id}/statistics"
+};
 
-        async function updateResult(id, result) {
-            if (database && state.user) {
-                await database.ref(`users/${state.user.uid}/history/${id}/result`).set(result);
-            }
-            const entry = state.history.find(e => e.id === id);
-            if (entry) entry.result = result;
-            localStorage.setItem('bombaBetHistory', JSON.stringify(state.history));
-            render();
-        }
+const LS = {
+  KEY: "bb_rapidapi_key",
+  SETTINGS: "bb_endpoints_v1",
+  HISTORY: "bb_history_v1",
+  CACHE: "bb_cache_v1:" // prefix
+};
 
-        // ============================================================
-        // API CALLS
-        // ============================================================
+/* ============================================================
+   SETTINGS (endpoints)
+   ============================================================ */
 
-        async function apiCall(endpoint) {
-            const url = `https://${API_HOST}${endpoint}`;
-            console.log(`📡 API: ${url}`);
-            
-            const response = await fetch(url, {
-                method: 'GET',
-                headers: {
-                    'X-RapidAPI-Key': RAPIDAPI_KEY,
-                    'X-RapidAPI-Host': API_HOST
-                }
-            });
-            
-            if (!response.ok) throw new Error(`HTTP ${response.status}`);
-            return await response.json();
-        }
+function loadSettings() {
+  try {
+    const raw = localStorage.getItem(LS.SETTINGS);
+    if (!raw) return { ...DEFAULT_ENDPOINTS };
+    const obj = JSON.parse(raw);
+    return {
+      scheduled: obj?.scheduled || DEFAULT_ENDPOINTS.scheduled,
+      event: obj?.event || DEFAULT_ENDPOINTS.event,
+      stats: obj?.stats || DEFAULT_ENDPOINTS.stats
+    };
+  } catch {
+    return { ...DEFAULT_ENDPOINTS };
+  }
+}
 
-        async function loadMatches() {
-            state.loading = true;
-            state.error = null;
-            state.matches = [];
-            state.selectedMatch = null;
-            render();
+function saveSettings(s) {
+  localStorage.setItem(LS.SETTINGS, JSON.stringify(s));
+}
 
-            try {
-                const data = await apiCall(`/v3/fixtures?league=${state.selectedLeague}&season=2024&next=20`);
-                
-                if (data.response && data.response.length > 0) {
-                    // Ordina per data cronologica
-                    state.matches = data.response.sort((a, b) => 
-                        new Date(a.fixture.date) - new Date(b.fixture.date)
-                    );
-                    console.log(`✅ ${state.matches.length} partite caricate`);
-                } else {
-                    state.error = 'Nessuna partita trovata';
-                }
-            } catch (e) {
-                console.error('❌ Errore:', e);
-                state.error = 'Errore: ' + e.message;
-            }
+let endpoints = loadSettings();
 
-            state.loading = false;
-            render();
-        }
+/* ============================================================
+   ANTI-429 + CACHE
+   ============================================================ */
 
-        async function loadPastMatches() {
-            state.loading = true;
-            render();
+const MIN_GAP_MS = 650;
+let _lastReqTs = 0;
 
-            try {
-                const data = await apiCall(`/v3/fixtures?league=${state.selectedLeague}&season=2024&last=20`);
-                
-                if (data.response && data.response.length > 0) {
-                    state.pastMatches = data.response.sort((a, b) => 
-                        new Date(b.fixture.date) - new Date(a.fixture.date)
-                    );
-                }
-            } catch (e) {
-                console.error('Errore past matches:', e);
-            }
+async function throttle() {
+  const now = Date.now();
+  const wait = Math.max(0, MIN_GAP_MS - (now - _lastReqTs));
+  if (wait > 0) await new Promise(r => setTimeout(r, wait));
+  _lastReqTs = Date.now();
+}
 
-            state.loading = false;
-            render();
-        }
+// Retry su 429: usa Retry-After se presente, altrimenti backoff esponenziale [web:70]
+async function fetchWith429Retry(url, options, maxRetries = 4) {
+  let last = null;
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    await throttle();
+    const res = await fetch(url, options);
+    last = res;
 
-        // ============================================================
-        // ANALISI ALGORITMI
-        // ============================================================
+    if (res.status !== 429) return res;
 
-        function getTeamStats(name) {
-            if (!name) return { corners: 5.0, cornersAg: 5.0, cards: 2.0, cardsAg: 2.0, ggRate: 50 };
-            
-            for (const [team, stats] of Object.entries(TEAM_STATS)) {
-                if (name.toLowerCase().includes(team.toLowerCase()) || team.toLowerCase().includes(name.toLowerCase())) {
-                    return stats;
-                }
-            }
-            return { corners: 5.0, cornersAg: 5.0, cards: 2.0, cardsAg: 2.0, ggRate: 50 };
-        }
+    const ra = res.headers.get("retry-after");
+    const retryAfterMs = ra ? (parseInt(ra, 10) * 1000) : 0;
+    const backoffMs = Math.round(900 * Math.pow(2, attempt)); // 0.9s, 1.8s, 3.6s...
+    const sleepMs = retryAfterMs > 0 ? retryAfterMs : backoffMs;
+    setStatus(`429: attendo ${Math.max(1, Math.round(sleepMs/1000))}s e riprovo...`);
+    await new Promise(r => setTimeout(r, sleepMs));
+  }
+  return last;
+}
 
-        function analyzeMatch(home, away) {
-            const h = getTeamStats(home);
-            const a = getTeamStats(away);
+const CACHE_TTL_MS = 60 * 1000;
 
-            // GG Analysis
-            const avgGGRate = (h.ggRate + a.ggRate) / 2;
-            const ggProb = Math.max(30, Math.min(75, avgGGRate));
-            const ggConf = 45 + Math.abs(ggProb - 50) * 0.7;
+function cacheGet(url) {
+  try {
+    const raw = localStorage.getItem(LS.CACHE + url);
+    if (!raw) return null;
+    const obj = JSON.parse(raw);
+    if (!obj?.t) return null;
+    if ((Date.now() - obj.t) > CACHE_TTL_MS) return null;
+    return obj.v;
+  } catch { return null; }
+}
 
-            // Corner Analysis
-            const homeCornersExp = (h.corners * 1.08 + a.cornersAg * 0.92) / 2;
-            const awayCornersExp = (a.corners * 0.92 + h.cornersAg * 1.08) / 2;
-            const totalCornersExp = homeCornersExp + awayCornersExp;
+function cacheSet(url, data) {
+  try {
+    localStorage.setItem(LS.CACHE + url, JSON.stringify({ t: Date.now(), v: data }));
+  } catch {}
+}
 
-            const cornerLines = [8.5, 9.5, 10.5, 11.5];
-            const cornerPreds = cornerLines.map(line => ({
-                line,
-                pick: totalCornersExp > line ? 'OVER' : 'UNDER',
-                conf: Math.min(85, 50 + Math.abs(totalCornersExp - line) * 9)
-            }));
+function clearCache() {
+  try {
+    const keys = Object.keys(localStorage);
+    keys.forEach(k => { if (k.startsWith(LS.CACHE)) localStorage.removeItem(k); });
+  } catch {}
+}
 
-            // Cards Analysis
-            const homeCardsExp = (h.cards * 0.9 + a.cardsAg * 1.1) / 2;
-            const awayCardsExp = (a.cards * 1.1 + h.cardsAg * 0.9) / 2;
-            const totalCardsExp = homeCardsExp + awayCardsExp;
+/* ============================================================
+   API KEY
+   ============================================================ */
 
-            const cardLines = [3.5, 4.5, 5.5];
-            const cardPreds = cardLines.map(line => ({
-                line,
-                pick: totalCardsExp > line ? 'OVER' : 'UNDER',
-                conf: Math.min(82, 48 + Math.abs(totalCardsExp - line) * 11)
-            }));
+let RAPIDAPI_KEY = localStorage.getItem(LS.KEY) || "";
 
-            return {
-                gg: { prob: ggProb, conf: ggConf },
-                corners: {
-                    total: totalCornersExp,
-                    home: homeCornersExp,
-                    away: awayCornersExp,
-                    preds: cornerPreds,
-                    best: cornerPreds.reduce((a, b) => a.conf > b.conf ? a : b)
-                },
-                cards: {
-                    total: totalCardsExp,
-                    home: homeCardsExp,
-                    away: awayCardsExp,
-                    preds: cardPreds,
-                    best: cardPreds.reduce((a, b) => a.conf > b.conf ? a : b)
-                }
-            };
-        }
+function promptKey() {
+  const k = prompt("Incolla la tua RapidAPI Key (salvata nel browser):", RAPIDAPI_KEY || "");
+  if (!k) return;
+  RAPIDAPI_KEY = k.trim();
+  localStorage.setItem(LS.KEY, RAPIDAPI_KEY);
+  setStatus("Key salvata.");
+}
 
-        // ============================================================
-        // SAVE & STATS
-        // ============================================================
+async function apiGet(path) {
+  if (!RAPIDAPI_KEY) throw new Error("RapidAPI Key mancante: clicca 🔑 Key.");
+  const url = `https://${RAPIDAPI_HOST}${path}`;
 
-        async function savePick(matchInfo, pickType, pickValue, conf) {
-            const entry = { 
-                id: Date.now(), 
-                matchInfo,
-                pickType,
-                pickValue,
-                conf: Math.round(conf), 
-                result: null, 
-                date: new Date().toISOString() 
-            };
-            await saveToCloud(entry);
-            showToast('✅ Pronostico salvato!');
-        }
+  const cached = cacheGet(url);
+  if (cached) return cached;
 
-        function showToast(msg) {
-            const toast = document.createElement('div');
-            toast.className = 'fixed bottom-20 left-1/2 transform -translate-x-1/2 bg-gradient-to-r from-green-500 to-cyan-500 text-black px-6 py-3 rounded-full font-bold z-50 slide-up';
-            toast.textContent = msg;
-            document.body.appendChild(toast);
-            setTimeout(() => toast.remove(), 2000);
-        }
+  const res = await fetchWith429Retry(url, {
+    method: "GET",
+    headers: {
+      "X-RapidAPI-Key": RAPIDAPI_KEY,
+      "X-RapidAPI-Host": RAPIDAPI_HOST
+    }
+  });
 
-        function getStats() {
-            const resolved = state.history.filter(e => e.result);
-            const won = resolved.filter(e => e.result === 'won').length;
-            return { 
-                total: state.history.length, 
-                won, 
-                lost: resolved.length - won, 
-                pending: state.history.length - resolved.length,
-                hitRate: resolved.length ? (won / resolved.length * 100).toFixed(1) : 0 
-            };
-        }
+  if (!res?.ok) {
+    let extra = "";
+    try { extra = (await res.text() || "").slice(0, 240); } catch {}
+    throw new Error(`HTTP ${res ? res.status : "?"}${extra ? " - " + extra : ""}`);
+  }
 
-        // ============================================================
-        // RENDER
-        // ============================================================
+  const data = await res.json();
+  cacheSet(url, data);
+  return data;
+}
 
-        function formatDateTime(dateStr) {
-            if (!dateStr) return { date: '--', time: '--', full: '--' };
-            const d = new Date(dateStr);
-            return {
-                date: d.toLocaleDateString('it-IT', { weekday: 'short', day: '2-digit', month: 'short' }),
-                time: d.toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' }),
-                full: d.toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit', year: 'numeric' })
-            };
-        }
+/* ============================================================
+   STATE
+   ============================================================ */
 
-        function confBadgeClass(v) {
-            return v >= 65 ? 'conf-high' : v >= 52 ? 'conf-mid' : 'conf-low';
-        }
+const sportMeta = {
+  football: { badge: "⚽", grad: "grad-green", label: "Calcio" },
+  basketball: { badge: "🏀", grad: "grad-orange", label: "Basket" },
+  tennis: { badge: "🎾", grad: "grad-purple", label: "Tennis" },
+};
 
-        function render() {
-            const root = document.getElementById('root');
+const state = {
+  sport: "football",
+  tab: "matches", // matches | history | debug
+  date: new Date().toISOString().slice(0, 10),
+  loading: false,
+  error: null,
+  matches: [],
+  selected: null,
+  lastRaw: null, // per debug
+  history: []
+};
 
-            if (state.authLoading) {
-                root.innerHTML = `
-                    <div class="min-h-screen flex items-center justify-center">
-                        <div class="text-center">
-                            <div class="w-16 h-16 border-4 border-t-transparent border-cyan-400 rounded-full loader mx-auto mb-4"></div>
-                            <p class="text-gray-400">Caricamento...</p>
-                        </div>
-                    </div>`;
-                return;
-            }
+function setStatus(msg) {
+  document.getElementById("statusLine").textContent = msg || "";
+}
 
-            if (!state.user) {
-                root.innerHTML = `
-                    <div class="min-h-screen flex items-center justify-center p-4">
-                        <div class="glass-strong p-8 max-w-md w-full slide-up glow-green">
-                            <div class="text-center mb-8">
-                                <div class="w-28 h-28 rounded-3xl bg-gradient-to-br from-green-400 via-cyan-500 to-blue-500 flex items-center justify-center mx-auto mb-6 shadow-2xl">
-                                    <span class="text-6xl">⚽</span>
-                                </div>
-                                <h1 class="text-4xl font-black gradient-text mb-2">BOMBA BET</h1>
-                                <p class="text-gray-400">Analisi Calcistiche PRO</p>
-                            </div>
-                            
-                            <div class="grid grid-cols-3 gap-3 mb-8">
-                                <div class="glass p-4 text-center rounded-xl">
-                                    <span class="text-2xl">⚽</span>
-                                    <p class="text-xs text-gray-400 mt-2">GG/NG</p>
-                                </div>
-                                <div class="glass p-4 text-center rounded-xl">
-                                    <span class="text-2xl">🚩</span>
-                                    <p class="text-xs text-gray-400 mt-2">Corner</p>
-                                </div>
-                                <div class="glass p-4 text-center rounded-xl">
-                                    <span class="text-2xl">🟨</span>
-                                    <p class="text-xs text-gray-400 mt-2">Cards</p>
-                                </div>
-                            </div>
-                            
-                            <button onclick="signInWithGoogle()" class="w-full py-4 rounded-2xl font-bold gradient-btn text-black flex items-center justify-center gap-3 text-lg">
-                                <img src="https://www.google.com/favicon.ico" class="w-6 h-6"/> Accedi con Google
-                            </button>
-                        </div>
-                    </div>`;
-                return;
-            }
+/* ============================================================
+   HISTORY (localStorage) [web:80]
+   ============================================================ */
 
-            let content = '';
+function loadHistory() {
+  try {
+    const raw = localStorage.getItem(LS.HISTORY);
+    const arr = raw ? JSON.parse(raw) : [];
+    return Array.isArray(arr) ? arr : [];
+  } catch { return []; }
+}
 
-            // ========== TAB PARTITE ==========
-            if (state.activeTab === 'matches') {
-                if (state.selectedMatch) {
-                    const m = state.selectedMatch;
-                    const home = m.teams.home.name;
-                    const away = m.teams.away.name;
-                    const analysis = analyzeMatch(home, away);
-                    const dt = formatDateTime(m.fixture.date);
-                    const matchInfo = `${home} vs ${away}`;
+function saveHistory() {
+  localStorage.setItem(LS.HISTORY, JSON.stringify(state.history));
+  refreshHeaderStats();
+}
 
-                    content = `
-                        <div class="slide-up">
-                            <button onclick="state.selectedMatch=null;render()" class="flex items-center gap-2 text-gray-400 mb-4 hover:text-white transition">
-                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg>
-                                Torna alle partite
-                            </button>
-                            
-                            <!-- Match Header -->
-                            <div class="glass-strong p-6 mb-6 glow-green">
-                                <div class="flex items-center justify-between mb-4">
-                                    <span class="stat-badge">${m.league?.name || 'League'}</span>
-                                    <span class="text-sm text-gray-400">${dt.date} • ${dt.time}</span>
-                                </div>
-                                <div class="flex items-center justify-between">
-                                    <div class="flex-1 text-center">
-                                        ${m.teams.home.logo ? `<img src="${m.teams.home.logo}" class="w-16 h-16 mx-auto mb-2"/>` : '<div class="w-16 h-16 bg-gray-700 rounded-full mx-auto mb-2"></div>'}
-                                        <p class="font-bold text-lg">${home}</p>
-                                        <p class="text-xs text-gray-500">Casa</p>
-                                    </div>
-                                    <div class="px-6">
-                                        <div class="w-14 h-14 rounded-full bg-gradient-to-br from-green-400 to-cyan-500 flex items-center justify-center">
-                                            <span class="text-black font-black text-lg">VS</span>
-                                        </div>
-                                    </div>
-                                    <div class="flex-1 text-center">
-                                        ${m.teams.away.logo ? `<img src="${m.teams.away.logo}" class="w-16 h-16 mx-auto mb-2"/>` : '<div class="w-16 h-16 bg-gray-700 rounded-full mx-auto mb-2"></div>'}
-                                        <p class="font-bold text-lg">${away}</p>
-                                        <p class="text-xs text-gray-500">Ospite</p>
-                                    </div>
-                                </div>
-                            </div>
+function addPick(pick) {
+  state.history.unshift(pick);
+  saveHistory();
+}
 
-                            <!-- GG Section -->
-                            <div class="glass p-5 mb-4">
-                                <div class="flex items-center gap-3 mb-4">
-                                    <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-green-400 to-cyan-500 flex items-center justify-center">
-                                        <span class="text-lg">⚽</span>
-                                    </div>
-                                    <div>
-                                        <h3 class="font-bold text-lg">Goal / Goal</h3>
-                                        <p class="text-xs text-gray-500">Entrambe le squadre segnano</p>
-                                    </div>
-                                </div>
-                                <div class="grid grid-cols-2 gap-3">
-                                    <div class="pick-card text-center ${analysis.gg.prob > 52 ? 'border-green-500/50' : ''}">
-                                        <p class="font-black text-2xl mb-1">GG</p>
-                                        <p class="text-sm text-gray-400 mb-2">${analysis.gg.prob.toFixed(0)}%</p>
-                                        <span class="conf-badge ${confBadgeClass(analysis.gg.prob > 52 ? analysis.gg.conf : 100 - analysis.gg.conf)}">${(analysis.gg.prob > 52 ? analysis.gg.conf : 100 - analysis.gg.conf).toFixed(0)}%</span>
-                                        <button onclick="savePick('${matchInfo}', 'GG', 'GG', ${analysis.gg.prob > 52 ? analysis.gg.conf : 100 - analysis.gg.conf})" class="mt-3 w-full py-2 rounded-lg gradient-btn text-black text-sm font-bold">💾 Salva</button>
-                                    </div>
-                                    <div class="pick-card text-center ${analysis.gg.prob <= 52 ? 'border-green-500/50' : ''}">
-                                        <p class="font-black text-2xl mb-1">NG</p>
-                                        <p class="text-sm text-gray-400 mb-2">${(100 - analysis.gg.prob).toFixed(0)}%</p>
-                                        <span class="conf-badge ${confBadgeClass(analysis.gg.prob <= 52 ? analysis.gg.conf : 100 - analysis.gg.conf)}">${(analysis.gg.prob <= 52 ? analysis.gg.conf : 100 - analysis.gg.conf).toFixed(0)}%</span>
-                                        <button onclick="savePick('${matchInfo}', 'GG', 'NG', ${analysis.gg.prob <= 52 ? analysis.gg.conf : 100 - analysis.gg.conf})" class="mt-3 w-full py-2 rounded-lg gradient-btn text-black text-sm font-bold">💾 Salva</button>
-                                    </div>
-                                </div>
-                            </div>
+function updatePickResult(id, result) {
+  const p = state.history.find(x => x.id === id);
+  if (!p) return;
+  p.result = result; // "won" | "lost" | null
+  saveHistory();
+  render();
+}
 
-                            <!-- CORNER Section -->
-                            <div class="glass p-5 mb-4">
-                                <div class="flex items-center gap-3 mb-4">
-                                    <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-yellow-400 to-orange-500 flex items-center justify-center">
-                                        <span class="text-lg">🚩</span>
-                                    </div>
-                                    <div>
-                                        <h3 class="font-bold text-lg">Corner</h3>
-                                        <p class="text-xs text-gray-500">Exp. Totale: ${analysis.corners.total.toFixed(1)}</p>
-                                    </div>
-                                </div>
-                                
-                                <!-- Corner Totale -->
-                                <p class="text-sm font-semibold text-gray-400 mb-2">📊 Totale Partita</p>
-                                <div class="grid grid-cols-2 gap-2 mb-4">
-                                    ${analysis.corners.preds.map(p => `
-                                        <div class="pick-card flex items-center justify-between">
-                                            <div>
-                                                <p class="font-bold">${p.pick} ${p.line}</p>
-                                            </div>
-                                            <div class="flex items-center gap-2">
-                                                <span class="conf-badge ${confBadgeClass(p.conf)}">${p.conf.toFixed(0)}%</span>
-                                                <button onclick="savePick('${matchInfo}', 'Corner', '${p.pick} ${p.line}', ${p.conf})" class="w-8 h-8 rounded-lg bg-gradient-to-br from-yellow-400 to-orange-500 flex items-center justify-center text-black">💾</button>
-                                            </div>
-                                        </div>
-                                    `).join('')}
-                                </div>
-                                
-                                <!-- Corner Casa/Ospite -->
-                                <p class="text-sm font-semibold text-gray-400 mb-2">🏠 Casa vs 🚌 Ospite</p>
-                                <div class="grid grid-cols-2 gap-3">
-                                    <div class="pick-card text-center">
-                                        <p class="text-xs text-gray-500 mb-1">Casa (${home.split(' ')[0]})</p>
-                                        <p class="font-black text-xl">${analysis.corners.home.toFixed(1)}</p>
-                                        <div class="flex gap-1 mt-2 justify-center">
-                                            <button onclick="savePick('${matchInfo}', 'Corner Casa', 'O3.5 ${home}', 60)" class="text-xs px-2 py-1 rounded bg-yellow-500/20 text-yellow-400">O3.5</button>
-                                            <button onclick="savePick('${matchInfo}', 'Corner Casa', 'O4.5 ${home}', 55)" class="text-xs px-2 py-1 rounded bg-yellow-500/20 text-yellow-400">O4.5</button>
-                                        </div>
-                                    </div>
-                                    <div class="pick-card text-center">
-                                        <p class="text-xs text-gray-500 mb-1">Ospite (${away.split(' ')[0]})</p>
-                                        <p class="font-black text-xl">${analysis.corners.away.toFixed(1)}</p>
-                                        <div class="flex gap-1 mt-2 justify-center">
-                                            <button onclick="savePick('${matchInfo}', 'Corner Ospite', 'O3.5 ${away}', 58)" class="text-xs px-2 py-1 rounded bg-yellow-500/20 text-yellow-400">O3.5</button>
-                                            <button onclick="savePick('${matchInfo}', 'Corner Ospite', 'O4.5 ${away}', 52)" class="text-xs px-2 py-1 rounded bg-yellow-500/20 text-yellow-400">O4.5</button>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
+function statsFromHistory() {
+  const total = state.history.length;
+  const resolved = state.history.filter(x => x.result === "won" || x.result === "lost");
+  const won = resolved.filter(x => x.result === "won").length;
+  const lost = resolved.filter(x => x.result === "lost").length;
+  const hit = resolved.length ? ((won / resolved.length) * 100) : 0;
+  return { total, won, lost, hit: hit.toFixed(1), resolved: resolved.length };
+}
 
-                            <!-- CARDS Section -->
-                            <div class="glass p-5 mb-4">
-                                <div class="flex items-center gap-3 mb-4">
-                                    <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-red-400 to-pink-500 flex items-center justify-center">
-                                        <span class="text-lg">🟨</span>
-                                    </div>
-                                    <div>
-                                        <h3 class="font-bold text-lg">Cartellini</h3>
-                                        <p class="text-xs text-gray-500">Exp. Totale: ${analysis.cards.total.toFixed(1)}</p>
-                                    </div>
-                                </div>
-                                
-                                <!-- Cards Totale -->
-                                <p class="text-sm font-semibold text-gray-400 mb-2">📊 Totale Partita</p>
-                                <div class="grid grid-cols-2 gap-2 mb-4">
-                                    ${analysis.cards.preds.map(p => `
-                                        <div class="pick-card flex items-center justify-between">
-                                            <div>
-                                                <p class="font-bold">${p.pick} ${p.line}</p>
-                                            </div>
-                                            <div class="flex items-center gap-2">
-                                                <span class="conf-badge ${confBadgeClass(p.conf)}">${p.conf.toFixed(0)}%</span>
-                                                <button onclick="savePick('${matchInfo}', 'Cards', '${p.pick} ${p.line}', ${p.conf})" class="w-8 h-8 rounded-lg bg-gradient-to-br from-red-400 to-pink-500 flex items-center justify-center text-white">💾</button>
-                                            </div>
-                                        </div>
-                                    `).join('')}
-                                </div>
-                                
-                                <!-- Cards Casa/Ospite -->
-                                <p class="text-sm font-semibold text-gray-400 mb-2">🏠 Casa vs 🚌 Ospite</p>
-                                <div class="grid grid-cols-2 gap-3">
-                                    <div class="pick-card text-center">
-                                        <p class="text-xs text-gray-500 mb-1">Casa (${home.split(' ')[0]})</p>
-                                        <p class="font-black text-xl">${analysis.cards.home.toFixed(1)}</p>
-                                        <div class="flex gap-1 mt-2 justify-center">
-                                            <button onclick="savePick('${matchInfo}', 'Cards Casa', 'O1.5 ${home}', 58)" class="text-xs px-2 py-1 rounded bg-red-500/20 text-red-400">O1.5</button>
-                                            <button onclick="savePick('${matchInfo}', 'Cards Casa', 'O2.5 ${home}', 50)" class="text-xs px-2 py-1 rounded bg-red-500/20 text-red-400">O2.5</button>
-                                        </div>
-                                    </div>
-                                    <div class="pick-card text-center">
-                                        <p class="text-xs text-gray-500 mb-1">Ospite (${away.split(' ')[0]})</p>
-                                        <p class="font-black text-xl">${analysis.cards.away.toFixed(1)}</p>
-                                        <div class="flex gap-1 mt-2 justify-center">
-                                            <button onclick="savePick('${matchInfo}', 'Cards Ospite', 'O1.5 ${away}', 60)" class="text-xs px-2 py-1 rounded bg-red-500/20 text-red-400">O1.5</button>
-                                            <button onclick="savePick('${matchInfo}', 'Cards Ospite', 'O2.5 ${away}', 52)" class="text-xs px-2 py-1 rounded bg-red-500/20 text-red-400">O2.5</button>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    `;
-                } else {
-                    // Lista Partite
-                    content = `
-                        <!-- League Selector -->
-                        <div class="flex gap-2 overflow-x-auto pb-3 mb-4 -mx-1 px-1">
-                            ${Object.entries(FOOTBALL_LEAGUES).slice(0, 8).map(([id, l]) => `
-                                <button onclick="state.selectedLeague=${id};loadMatches()" class="league-chip ${state.selectedLeague == id ? 'active' : ''}">
-                                    ${l.flag} ${l.name.split(' ')[0]}
-                                </button>
-                            `).join('')}
-                        </div>
-                        
-                        <div class="flex items-center justify-between mb-4">
-                            <h2 class="text-xl font-bold">📅 Prossime Partite</h2>
-                            <button onclick="loadMatches()" class="gradient-btn px-4 py-2 rounded-xl text-black font-bold text-sm ${state.loading ? 'opacity-50' : ''}">
-                                ${state.loading ? '⏳' : '🔄'} Carica
-                            </button>
-                        </div>
-                        
-                        ${state.loading ? `
-                            <div class="glass p-12 text-center">
-                                <div class="w-12 h-12 border-4 border-t-transparent border-cyan-400 rounded-full loader mx-auto mb-4"></div>
-                                <p class="text-gray-400">Caricamento partite...</p>
-                            </div>
-                        ` : state.error ? `
-                            <div class="glass p-8 text-center">
-                                <p class="text-red-400 mb-2">⚠️ ${state.error}</p>
-                                <button onclick="loadMatches()" class="text-cyan-400 text-sm">Riprova</button>
-                            </div>
-                        ` : state.matches.length === 0 ? `
-                            <div class="glass p-12 text-center">
-                                <div class="w-20 h-20 rounded-full bg-gray-800 flex items-center justify-center mx-auto mb-4">
-                                    <span class="text-4xl">⚽</span>
-                                </div>
-                                <p class="text-gray-400 mb-2">Nessuna partita caricata</p>
-                                <p class="text-sm text-gray-500">Clicca "Carica" per vedere le partite</p>
-                            </div>
-                        ` : `
-                            <div class="space-y-3">
-                                ${state.matches.map((m, i) => {
-                                    const dt = formatDateTime(m.fixture.date);
-                                    return `
-                                        <div onclick="state.selectedMatch=state.matches[${i}];render()" class="glass match-card p-4 slide-up" style="animation-delay:${i * 50}ms">
-                                            <div class="flex items-center justify-between mb-3">
-                                                <span class="stat-badge text-xs">${m.league?.name || ''}</span>
-                                                <span class="text-xs text-gray-500">${dt.date} • ${dt.time}</span>
-                                            </div>
-                                            <div class="flex items-center justify-between">
-                                                <div class="flex items-center gap-3 flex-1">
-                                                    ${m.teams.home.logo ? `<img src="${m.teams.home.logo}" class="w-10 h-10"/>` : ''}
-                                                    <span class="font-bold">${m.teams.home.name}</span>
-                                                </div>
-                                                <div class="w-10 h-10 rounded-full bg-gradient-to-br from-green-400/20 to-cyan-500/20 flex items-center justify-center mx-2">
-                                                    <span class="text-xs font-bold text-gray-400">VS</span>
-                                                </div>
-                                                <div class="flex items-center gap-3 flex-1 justify-end">
-                                                    <span class="font-bold">${m.teams.away.name}</span>
-                                                    ${m.teams.away.logo ? `<img src="${m.teams.away.logo}" class="w-10 h-10"/>` : ''}
-                                                </div>
-                                            </div>
-                                            <div class="text-center mt-3">
-                                                <span class="text-xs text-cyan-400">Clicca per analisi dettagliata →</span>
-                                            </div>
-                                        </div>
-                                    `;
-                                }).join('')}
-                            </div>
-                        `}
-                    `;
-                }
-            }
+function refreshHeaderStats() {
+  const s = statsFromHistory();
+  document.getElementById("uiHit").textContent = `${s.hit}%`;
+  document.getElementById("uiTot").textContent = `${s.total}`;
+  document.getElementById("uiWL").textContent = `${s.won}/${s.lost}`;
+}
 
-            // ========== TAB STORICO ==========
-            if (state.activeTab === 'history') {
-                const stats = getStats();
-                content = `
-                    <!-- Stats Overview -->
-                    <div class="glass-strong p-6 mb-6 glow-green">
-                        <h3 class="font-bold text-lg mb-4">📊 Le Tue Statistiche</h3>
-                        <div class="grid grid-cols-4 gap-3">
-                            <div class="text-center">
-                                <p class="text-3xl font-black">${stats.total}</p>
-                                <p class="text-xs text-gray-400">Totali</p>
-                            </div>
-                            <div class="text-center">
-                                <p class="text-3xl font-black text-green-400">${stats.won}</p>
-                                <p class="text-xs text-gray-400">Vinti</p>
-                            </div>
-                            <div class="text-center">
-                                <p class="text-3xl font-black text-red-400">${stats.lost}</p>
-                                <p class="text-xs text-gray-400">Persi</p>
-                            </div>
-                            <div class="text-center">
-                                <p class="text-3xl font-black gradient-text">${stats.hitRate}%</p>
-                                <p class="text-xs text-gray-400">Hit Rate</p>
-                            </div>
-                        </div>
-                        ${stats.total > 0 ? `
-                            <div class="mt-4 bg-black/30 rounded-xl p-3">
-                                <div class="flex justify-between text-xs text-gray-400 mb-1">
-                                    <span>Progressi</span>
-                                    <span>${stats.won}/${stats.won + stats.lost}</span>
-                                </div>
-                                <div class="w-full h-3 bg-gray-800 rounded-full overflow-hidden">
-                                    <div class="h-full bg-gradient-to-r from-green-400 to-cyan-500 rounded-full transition-all" style="width: ${stats.hitRate}%"></div>
-                                </div>
-                            </div>
-                        ` : ''}
-                    </div>
+/* ============================================================
+   ENDPOINT HELPERS
+   ============================================================ */
 
-                    <!-- History List -->
-                    <h3 class="font-bold text-lg mb-4">📝 I Tuoi Pronostici</h3>
-                    <div class="space-y-3">
-                        ${state.history.length === 0 ? `
-                            <div class="glass p-8 text-center">
-                                <p class="text-gray-400">Nessun pronostico salvato</p>
-                                <p class="text-sm text-gray-500 mt-2">Vai su Partite per iniziare!</p>
-                            </div>
-                        ` : state.history.sort((a, b) => b.id - a.id).map(e => {
-                            const typeIcon = e.pickType?.includes('Corner') ? '🚩' : e.pickType?.includes('Card') ? '🟨' : '⚽';
-                            const bgClass = e.result === 'won' ? 'result-won' : e.result === 'lost' ? 'result-lost' : '';
-                            return `
-                                <div class="glass p-4 border ${bgClass} slide-up">
-                                    <div class="flex items-start justify-between">
-                                        <div class="flex-1">
-                                            <div class="flex items-center gap-2 mb-1">
-                                                <span class="text-lg">${typeIcon}</span>
-                                                <span class="font-bold text-sm">${e.matchInfo || e.description || 'Partita'}</span>
-                                            </div>
-                                            <p class="text-cyan-400 font-semibold">${e.pickType || ''}: ${e.pickValue || ''}</p>
-                                            <div class="flex items-center gap-2 mt-2">
-                                                <span class="conf-badge ${confBadgeClass(e.conf)}">${e.conf}%</span>
-                                                <span class="text-xs text-gray-500">${new Date(e.date).toLocaleDateString('it-IT')}</span>
-                                            </div>
-                                        </div>
-                                        <div class="ml-4">
-                                            ${e.result === null ? `
-                                                <div class="flex flex-col gap-2">
-                                                    <button onclick="updateResult(${e.id},'won')" class="px-4 py-2 rounded-lg bg-green-500/20 text-green-400 font-bold text-sm hover:bg-green-500/30 transition">✓ WIN</button>
-                                                    <button onclick="updateResult(${e.id},'lost')" class="px-4 py-2 rounded-lg bg-red-500/20 text-red-400 font-bold text-sm hover:bg-red-500/30 transition">✗ LOST</button>
-                                                </div>
-                                            ` : `
-                                                <div class="w-14 h-14 rounded-xl flex items-center justify-center ${e.result === 'won' ? 'bg-green-500/20' : 'bg-red-500/20'}">
-                                                    <span class="text-3xl">${e.result === 'won' ? '✅' : '❌'}</span>
-                                                </div>
-                                            `}
-                                        </div>
-                                    </div>
-                                </div>
-                            `;
-                        }).join('')}
-                    </div>
-                    
-                    <button onclick="signOut()" class="w-full mt-8 py-4 glass rounded-2xl text-red-400 font-bold">🚪 Logout</button>
-                `;
-            }
+function fillPath(template, vars) {
+  return template
+    .replaceAll("{sport}", vars.sport)
+    .replaceAll("{date}", vars.date)
+    .replaceAll("{id}", vars.id);
+}
 
-            // ========== MAIN LAYOUT ==========
-            root.innerHTML = `
-                <div class="max-w-lg mx-auto min-h-screen flex flex-col pb-24">
-                    <!-- Header -->
-                    <header class="sticky top-0 z-50 glass border-b border-white/5">
-                        <div class="px-4 py-4 flex items-center justify-between">
-                            <div class="flex items-center gap-3">
-                                <div class="w-11 h-11 rounded-2xl bg-gradient-to-br from-green-400 to-cyan-500 flex items-center justify-center shadow-lg">
-                                    <span class="text-xl">⚽</span>
-                                </div>
-                                <div>
-                                    <h1 class="font-black text-lg gradient-text">BOMBA BET</h1>
-                                    <p class="text-xs text-gray-500">${state.user?.displayName?.split(' ')[0] || 'User'}</p>
-                                </div>
-                            </div>
-                            <div class="flex items-center gap-2">
-                                <div class="pulse-dot w-2 h-2 rounded-full ${state.syncStatus === 'synced' ? 'bg-green-400' : 'bg-yellow-400'}"></div>
-                                <span class="text-xs text-gray-500">${state.syncStatus === 'synced' ? 'Sync' : 'Local'}</span>
-                            </div>
-                        </div>
-                    </header>
-                    
-                    <!-- Content -->
-                    <main class="flex-1 p-4">${content}</main>
-                    
-                    <!-- Bottom Navigation -->
-                    <nav class="fixed bottom-0 left-0 right-0 glass border-t border-white/5 z-50">
-                        <div class="max-w-lg mx-auto flex">
-                            <button onclick="state.activeTab='matches';state.selectedMatch=null;render()" class="flex-1 py-4 flex flex-col items-center gap-1 ${state.activeTab === 'matches' ? 'text-cyan-400' : 'text-gray-500'}">
-                                <span class="text-xl">📅</span>
-                                <span class="text-xs font-semibold">Partite</span>
-                            </button>
-                            <button onclick="state.activeTab='history';render()" class="flex-1 py-4 flex flex-col items-center gap-1 ${state.activeTab === 'history' ? 'text-cyan-400' : 'text-gray-500'}">
-                                <span class="text-xl">📊</span>
-                                <span class="text-xs font-semibold">Storico</span>
-                            </button>
-                        </div>
-                    </nav>
-                </div>
-            `;
-        }
+/* ============================================================
+   DATA NORMALIZATION
+   ============================================================ */
 
-        // INIT
-        setupAuthListener();
-    </script>
-</body>
-</html>
+function normalizeEventsResponse(data) {
+  // sportapi7 spesso usa { events: [...] } (stile Sofascore)
+  // fallback: prova altri campi comuni.
+  const events = data?.events || data?.response || data?.data || data?.results || [];
+  return Array.isArray(events) ? events : [];
+}
+
+function toMatchModel(ev) {
+  const id = ev?.id ?? ev?.event?.id ?? ev?.fixture?.id ?? null;
+  const startTs = ev?.startTimestamp ?? ev?.startTime ?? ev?.fixture?.timestamp ?? null;
+
+  const tournament =
+    ev?.tournament?.name ||
+    ev?.league?.name ||
+    ev?.competition?.name ||
+    ev?.category?.name ||
+    ev?.tournament?.category?.name ||
+    "—";
+
+  const home =
+    ev?.homeTeam?.name ||
+    ev?.home?.name ||
+    ev?.teams?.home?.name ||
+    ev?.player1?.name ||
+    ev?.homePlayer?.name ||
+    "Home";
+
+  const away =
+    ev?.awayTeam?.name ||
+    ev?.away?.name ||
+    ev?.teams?.away?.name ||
+    ev?.player2?.name ||
+    ev?.awayPlayer?.name ||
+    "Away";
+
+  const homeLogo =
+    ev?.homeTeam?.logo || ev?.home?.logo || ev?.teams?.home?.logo || null;
+
+  const awayLogo =
+    ev?.awayTeam?.logo || ev?.away?.logo || ev?.teams?.away?.logo || null;
+
+  return { id, startTs, tournament, home, away, homeLogo, awayLogo, raw: ev };
+}
+
+function fmtDate(tsSeconds) {
+  try {
+    if (!tsSeconds) return "--";
+    const d = new Date(tsSeconds * 1000);
+    return d.toLocaleString("it-IT", { weekday:"short", day:"2-digit", month:"2-digit", hour:"2-digit", minute:"2-digit" });
+  } catch { return "--"; }
+}
+
+function confClass(v) {
+  if (v >= 65) return "conf-high";
+  if (v >= 52) return "conf-mid";
+  return "conf-low";
+}
+
+/* ============================================================
+   ANALYSIS (Calcio) — SOLO: GG + Corner (Tot, Home, Away) + Cards (Tot, Home, Away)
+   ============================================================ */
+
+// Mini database (puoi estenderlo)
+const TEAMSTATS = {
+  "Juventus": { corners: 5.8, cornersAg: 4.2, cards: 2.1, cardsAg: 1.8, gf: 1.8, ga: 0.9, ggRate: 48 },
+  "Inter":    { corners: 6.2, cornersAg: 3.8, cards: 1.9, cardsAg: 2.0, gf: 2.4, ga: 0.8, ggRate: 52 },
+  "Milan":    { corners: 5.5, cornersAg: 4.5, cards: 2.3, cardsAg: 1.9, gf: 2.1, ga: 1.1, ggRate: 58 },
+  "Roma":     { corners: 5.3, cornersAg: 4.8, cards: 2.4, cardsAg: 2.0, gf: 1.6, ga: 1.2, ggRate: 52 },
+  "Napoli":   { corners: 5.9, cornersAg: 4.0, cards: 2.0, cardsAg: 2.1, gf: 2.2, ga: 1.0, ggRate: 55 },
+};
+
+function getTeamStats(name) {
+  if (!name) return { corners: 5.0, cornersAg: 5.0, cards: 2.0, cardsAg: 2.0, gf: 1.3, ga: 1.3, ggRate: 50 };
+  const n = name.toLowerCase();
+  for (const [k, v] of Object.entries(TEAMSTATS)) {
+    const kk = k.toLowerCase();
+    if (n.includes(kk) || kk.includes(n)) return v;
+  }
+  return { corners: 5.0, cornersAg: 5.0, cards: 2.0, cardsAg: 2.0, gf: 1.3, ga: 1.3, ggRate: 50 };
+}
+
+function ouLines(lines, exp, baseConf, scale=10) {
+  return lines.map(line => {
+    const pick = exp > line ? "OVER" : "UNDER";
+    const conf = Math.min(85, baseConf + Math.abs(exp - line) * scale);
+    return { line, pick, conf };
+  });
+}
+
+function analyzeFootballMatch(home, away) {
+  const h = getTeamStats(home);
+  const a = getTeamStats(away);
+
+  // GG (stimato)
+  const homeScoreProb = Math.min(95, (h.gf / 2.5) * 100);
+  const awayScoreProb = Math.min(95, (a.gf / 2.5) * 100);
+  const avgGGRate = (h.ggRate + a.ggRate) / 2;
+  let ggProb = (homeScoreProb * awayScoreProb / 100) * 0.5 + avgGGRate * 0.5;
+  ggProb = Math.max(25, Math.min(78, ggProb));
+
+  // Corner stimati (home/away/total)
+  const homeCornersExp = (h.corners * 1.08 + a.cornersAg * 0.92) / 2;
+  const awayCornersExp = (a.corners * 0.92 + h.cornersAg * 1.08) / 2;
+  const totalCornersExp = homeCornersExp + awayCornersExp;
+
+  // Cartellini stimati (home/away/total)
+  const homeCardsExp = (h.cards * 0.92 + a.cardsAg * 1.08) / 2;
+  const awayCardsExp = (a.cards * 1.05 + h.cardsAg * 0.95) / 2;
+  const totalCardsExp = homeCardsExp + awayCardsExp;
+
+  return {
+    gg: {
+      pick: ggProb >= 52 ? "GG" : "NG",
+      prob: ggProb,
+      conf: 45 + Math.abs(ggProb - 50) * 0.8
+    },
+    corners: {
+      total: { exp: totalCornersExp, lines: ouLines([8.5, 9.5, 10.5, 11.5], totalCornersExp, 50, 9) },
+      home:  { exp: homeCornersExp,  lines: ouLines([3.5, 4.5, 5.5, 6.5],  homeCornersExp,  48, 11) },
+      away:  { exp: awayCornersExp,  lines: ouLines([3.5, 4.5, 5.5, 6.5],  awayCornersExp,  48, 11) }
+    },
+    cards: {
+      total: { exp: totalCardsExp, lines: ouLines([3.5, 4.5, 5.5], totalCardsExp, 48, 11) },
+      home:  { exp: homeCardsExp,  lines: ouLines([1.5, 2.5, 3.5], homeCardsExp,  46, 12) },
+      away:  { exp: awayCardsExp,  lines: ouLines([1.5, 2.5, 3.5], awayCardsExp,  46, 12) }
+    }
+  };
+}
+
+/* ============================================================
+   LOAD MATCHES + ORDER CHRONOLOGICAL [web:60]
+   ============================================================ */
+
+async function loadMatches() {
+  if (state.loading) return;
+  state.loading = true;
+  state.error = null;
+  state.matches = [];
+  state.selected = null;
+  setStatus("Caricamento eventi...");
+  render();
+
+  try {
+    const path = fillPath(endpoints.scheduled, { sport: state.sport, date: state.date });
+    const data = await apiGet(path);
+    state.lastRaw = data;
+
+    const events = normalizeEventsResponse(data);
+    state.matches = events.map(toMatchModel);
+
+    // ordine cronologico crescente [web:60]
+    state.matches.sort((a, b) => (a.startTs || 0) - (b.startTs || 0));
+
+    if (!state.matches.length) {
+      state.error = "Nessun evento trovato. Verifica endpoint/abbonamento nel Playground RapidAPI.";
+    } else {
+      setStatus(`Trovati ${state.matches.length} eventi.`);
+    }
+  } catch (e) {
+    state.error = e?.message || String(e);
+    setStatus("");
+  } finally {
+    state.loading = false;
+    render();
+  }
+}
+
+/* ============================================================
+   LOAD EVENT DETAILS (opzionale)
+   ============================================================ */
+
+async function loadEventDetails(eventId) {
+  if (state.loading) return;
+  state.loading = true;
+  state.error = null;
+  setStatus("Caricamento evento...");
+  render();
+
+  const base = state.matches.find(m => String(m.id) === String(eventId));
+
+  try {
+    const pEvent = fillPath(endpoints.event, { id: eventId });
+    const pStats = fillPath(endpoints.stats, { id: eventId });
+
+    const [evRes, stRes] = await Promise.allSettled([
+      apiGet(pEvent),
+      apiGet(pStats)
+    ]);
+
+    const ev = (evRes.status === "fulfilled") ? evRes.value : null;
+    const st = (stRes.status === "fulfilled") ? stRes.value : null;
+
+    state.selected = {
+      id: eventId,
+      base,
+      ev,
+      st,
+      // tenta di prendere info migliori dall'evento dettagliato
+      home: ev?.event?.homeTeam?.name || ev?.homeTeam?.name || base?.home || "Home",
+      away: ev?.event?.awayTeam?.name || ev?.awayTeam?.name || base?.away || "Away",
+      tournament: ev?.event?.tournament?.name || ev?.tournament?.name || base?.tournament || "—",
+      startTs: ev?.event?.startTimestamp || ev?.startTimestamp || base?.startTs || null
+    };
+
+    setStatus("Evento pronto.");
+  } catch (e) {
+    state.error = e?.message || String(e);
+    state.selected = null;
+    setStatus("");
+  } finally {
+    state.loading = false;
+    render();
+  }
+}
+
+/* ============================================================
+   UI RENDER
+   ============================================================ */
+
+function escapeHtml(s) {
+  return String(s ?? "").replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m]));
+}
+function escapeAttr(s) { return escapeHtml(s).replace(/`/g, "&#096;"); }
+
+function renderLoadingCard(msg="Caricamento...") {
+  return `
+    <div class="glass rounded-2xl p-8 text-center">
+      <div class="w-12 h-12 border-4 border-cyan-400 border-t-transparent rounded-full loader mx-auto mb-4"></div>
+      <div class="text-gray-300 font-bold">${escapeHtml(msg)}</div>
+      <div class="text-xs text-gray-500 mt-2">Se ricevi 429, attendi e riprova.</div>
+    </div>
+  `;
+}
+
+function renderErrorCard(err) {
+  return `
+    <div class="glass rounded-2xl p-6">
+      <div class="text-red-300 font-black mb-2">Errore</div>
+      <div class="text-sm text-red-200 mono whitespace-pre-wrap">${escapeHtml(err)}</div>
+      <div class="text-xs text-gray-400 mt-3">
+        Suggerimento: se è 404 o “Nessun evento”, controlla gli endpoint nella sezione ⚙️ API.
+      </div>
+    </div>
+  `;
+}
+
+function renderMatchesList() {
+  const meta = sportMeta[state.sport];
+
+  let top = `
+    <div class="flex items-center justify-between gap-3">
+      <div class="flex items-center gap-2">
+        <div class="chip px-3 py-1 rounded-full text-xs font-bold">${meta.label}</div>
+        <div class="chip px-3 py-1 rounded-full text-xs font-bold text-cyan-200">${escapeHtml(state.date)}</div>
+      </div>
+      <div class="text-xs text-gray-400">${state.matches.length ? `${state.matches.length} eventi` : ""}</div>
+    </div>
+  `;
+
+  if (state.loading) return top + renderLoadingCard();
+  if (state.error) return top + renderErrorCard(state.error);
+  if (!state.matches.length) {
+    return top + `
+      <div class="glass rounded-2xl p-8 text-center">
+        <div class="text-gray-300 font-bold mb-2">Nessun evento caricato</div>
+        <div class="text-xs text-gray-500">Seleziona una data e premi “Carica”.</div>
+      </div>
+    `;
+  }
+
+  let list = `<div class="grid grid-cols-1 lg:grid-cols-2 gap-3">`;
+  state.matches.forEach((m, i) => {
+    list += `
+      <div class="glass rounded-2xl p-4 match-card" data-id="${escapeHtml(String(m.id ?? i))}">
+        <div class="flex items-center justify-between mb-2">
+          <div class="text-xs text-cyan-200 font-bold truncate pr-2">${escapeHtml(m.tournament)}</div>
+          <div class="text-xs text-gray-400">${escapeHtml(fmtDate(m.startTs))}</div>
+        </div>
+
+        <div class="flex items-center justify-between gap-3">
+          <div class="flex items-center gap-2 min-w-0 flex-1">
+            ${m.homeLogo ? `<img class="w-8 h-8 rounded-lg" src="${escapeAttr(m.homeLogo)}">` : `<div class="w-8 h-8 rounded-lg bg-white/5"></div>`}
+            <div class="font-black text-white truncate">${escapeHtml(m.home)}</div>
+          </div>
+          <div class="text-gray-400 font-bold">vs</div>
+          <div class="flex items-center gap-2 min-w-0 flex-1 justify-end">
+            <div class="font-black text-white truncate text-right">${escapeHtml(m.away)}</div>
+            ${m.awayLogo ? `<img class="w-8 h-8 rounded-lg" src="${escapeAttr(m.awayLogo)}">` : `<div class="w-8 h-8 rounded-lg bg-white/5"></div>`}
+          </div>
+        </div>
+
+        <div class="mt-3 flex items-center justify-between">
+          <div class="text-[11px] text-gray-400 mono">ID: ${escapeHtml(String(m.id ?? "n/a"))}</div>
+          <div class="text-[11px] text-emerald-300 font-bold">Clicca per analisi →</div>
+        </div>
+      </div>
+    `;
+  });
+  list += `</div>`;
+  return top + list;
+}
+
+function pickTemplate({ type, side, market, line, pick, conf, match }) {
+  return {
+    id: Date.now() + Math.floor(Math.random() * 9999),
+    createdAt: new Date().toISOString(),
+    sport: state.sport,
+    eventId: String(match.id ?? ""),
+    eventTime: match.startTs || null,
+    teams: `${match.home} vs ${match.away}`,
+    tournament: match.tournament,
+    date: state.date,
+    type,      // "GG" | "Corners" | "Cards"
+    market,    // es: "Totale" | "Casa" | "Ospite"
+    side,      // "Total" | "Home" | "Away"
+    line,      // number or null
+    pick,      // "GG" | "NG" | "OVER" | "UNDER"
+    conf: Math.round(conf),
+    result: null // won | lost | null
+  };
+}
+
+function renderPickRow(match, type, marketLabel, side, lineObj) {
+  const pick = lineObj.pick;
+  const conf = lineObj.conf;
+  const cl = confClass(conf);
+
+  const label = `${type} ${marketLabel}`;
+  const btnText = `${pick} ${lineObj.line}`;
+
+  return `
+    <div class="flex items-center justify-between gap-2 bg-black/30 rounded-xl p-3 soft-border">
+      <div class="min-w-0">
+        <div class="text-sm font-bold text-white truncate">${escapeHtml(label)}</div>
+        <div class="text-xs text-gray-400">Linea: <span class="mono">${lineObj.line}</span></div>
+      </div>
+
+      <div class="flex items-center gap-2">
+        <div class="text-sm font-black ${cl}">${lineObj.conf.toFixed(0)}</div>
+        <button class="btnPick px-3 py-2 rounded-xl text-xs font-black text-gray-900 grad-green" 
+          data-type="${escapeHtml(type)}"
+          data-market="${escapeHtml(marketLabel)}"
+          data-side="${escapeHtml(side)}"
+          data-line="${escapeHtml(String(lineObj.line))}"
+          data-pick="${escapeHtml(pick)}"
+          data-conf="${escapeHtml(String(conf))}">
+          Salva
+        </button>
+      </div>
+    </div>
+  `;
+}
+
+function renderSelected() {
+  const s = state.selected;
+  const m = {
+    id: s.id,
+    home: s.home,
+    away: s.away,
+    tournament: s.tournament,
+    startTs: s.startTs,
+    homeLogo: s.base?.homeLogo || null,
+    awayLogo: s.base?.awayLogo || null
+  };
+
+  const header = `
+    <div class="flex items-center justify-between gap-3">
+      <button id="btnBack" class="btn px-4 py-2 rounded-xl text-sm font-bold">← Indietro</button>
+      <div class="chip px-3 py-1 rounded-full text-xs font-bold text-cyan-200">${escapeHtml(fmtDate(m.startTs))}</div>
+    </div>
+
+    <div class="glass rounded-2xl p-5">
+      <div class="flex items-center justify-between mb-2">
+        <div class="text-xs text-cyan-200 font-bold">${escapeHtml(m.tournament)}</div>
+        <div class="text-xs text-gray-400 mono">ID: ${escapeHtml(String(m.id))}</div>
+      </div>
+
+      <div class="flex items-center justify-center gap-3">
+        <div class="flex items-center gap-2 min-w-0">
+          ${m.homeLogo ? `<img class="w-10 h-10 rounded-xl" src="${escapeAttr(m.homeLogo)}">` : `<div class="w-10 h-10 rounded-xl bg-white/5"></div>`}
+          <div class="font-black text-white text-lg truncate">${escapeHtml(m.home)}</div>
+        </div>
+        <div class="text-gray-400 font-black text-xl">vs</div>
+        <div class="flex items-center gap-2 min-w-0">
+          <div class="font-black text-white text-lg truncate text-right">${escapeHtml(m.away)}</div>
+          ${m.awayLogo ? `<img class="w-10 h-10 rounded-xl" src="${escapeAttr(m.awayLogo)}">` : `<div class="w-10 h-10 rounded-xl bg-white/5"></div>`}
+        </div>
+      </div>
+    </div>
+  `;
+
+  if (state.sport !== "football") {
+    return header + `
+      <div class="glass rounded-2xl p-5">
+        <div class="font-black text-white mb-2">Analisi non disponibile</div>
+        <div class="text-sm text-gray-300">In questa versione l’analisi è implementata solo per Calcio.</div>
+        <div class="text-xs text-gray-500 mt-2">Puoi comunque salvare un pick manuale dallo Storico (prossimo step, se vuoi).</div>
+      </div>
+    `;
+  }
+
+  const a = analyzeFootballMatch(m.home, m.away);
+
+  const ggBox = `
+    <div class="glass rounded-2xl p-5">
+      <div class="flex items-center justify-between">
+        <div class="font-black text-white">Segno</div>
+        <div class="chip px-3 py-1 rounded-full text-xs font-bold">Solo GG</div>
+      </div>
+
+      <div class="grid grid-cols-2 gap-3 mt-4">
+        <div class="bg-black/30 rounded-2xl p-4 soft-border text-center ${a.gg.pick === "GG" ? "ring-2 ring-emerald-500/60" : ""}">
+          <div class="text-2xl font-black text-white">GG</div>
+          <div class="text-xs text-gray-400 mt-1">Prob</div>
+          <div class="text-lg font-black ${confClass(a.gg.conf)}">${a.gg.prob.toFixed(0)}%</div>
+          <button class="btnPick mt-3 w-full px-3 py-2 rounded-xl text-xs font-black text-gray-900 grad-green"
+            data-type="GG" data-market="Segno" data-side="Total" data-line="" data-pick="GG" data-conf="${escapeAttr(String(a.gg.conf))}">
+            Salva GG
+          </button>
+        </div>
+
+        <div class="bg-black/30 rounded-2xl p-4 soft-border text-center ${a.gg.pick === "NG" ? "ring-2 ring-rose-500/60" : ""}">
+          <div class="text-2xl font-black text-white">NG</div>
+          <div class="text-xs text-gray-400 mt-1">Prob</div>
+          <div class="text-lg font-black ${confClass(100 - a.gg.conf)}">${(100 - a.gg.prob).toFixed(0)}%</div>
+          <button class="btnPick mt-3 w-full px-3 py-2 rounded-xl text-xs font-black text-gray-900 grad-orange"
+            data-type="GG" data-market="Segno" data-side="Total" data-line="" data-pick="NG" data-conf="${escapeAttr(String(100 - a.gg.conf))}">
+            Salva NG
+          </button>
+        </div>
+      </div>
+    </div>
+  `;
+
+  function block(title, subtitle, exp, rowsHtml) {
+    return `
+      <div class="glass rounded-2xl p-5">
+        <div class="flex items-end justify-between gap-2">
+          <div>
+            <div class="font-black text-white">${escapeHtml(title)}</div>
+            <div class="text-xs text-gray-400 mt-1">${escapeHtml(subtitle)}</div>
+          </div>
+          <div class="chip px-3 py-1 rounded-full text-xs font-bold text-cyan-200">Exp <span class="mono">${exp.toFixed(1)}</span></div>
+        </div>
+        <div class="space-y-2 mt-4">${rowsHtml}</div>
+      </div>
+    `;
+  }
+
+  // Corner rows
+  const cornersTotalRows = a.corners.total.lines.map(l => renderPickRow(m, "Corners", "Totale", "Total", l)).join("");
+  const cornersHomeRows  = a.corners.home.lines.map(l => renderPickRow(m, "Corners", "Casa", "Home", l)).join("");
+  const cornersAwayRows  = a.corners.away.lines.map(l => renderPickRow(m, "Corners", "Ospite", "Away", l)).join("");
+
+  // Cards rows
+  const cardsTotalRows = a.cards.total.lines.map(l => renderPickRow(m, "Cards", "Totale", "Total", l)).join("");
+  const cardsHomeRows  = a.cards.home.lines.map(l => renderPickRow(m, "Cards", "Casa", "Home", l)).join("");
+  const cardsAwayRows  = a.cards.away.lines.map(l => renderPickRow(m, "Cards", "Ospite", "Away", l)).join("");
+
+  const cornerBlocks = `
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-3">
+      ${block("Corner", "Over/Under Totale", a.corners.total.exp, cornersTotalRows)}
+      ${block("Corner", "Over/Under Casa", a.corners.home.exp, cornersHomeRows)}
+      ${block("Corner", "Over/Under Ospite", a.corners.away.exp, cornersAwayRows)}
+    </div>
+  `;
+
+  const cardBlocks = `
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-3">
+      ${block("Cartellini", "Over/Under Totale", a.cards.total.exp, cardsTotalRows)}
+      ${block("Cartellini", "Over/Under Casa", a.cards.home.exp, cardsHomeRows)}
+      ${block("Cartellini", "Over/Under Ospite", a.cards.away.exp, cardsAwayRows)}
+    </div>
+  `;
+
+  return header + ggBox + cornerBlocks + cardBlocks;
+}
+
+function renderHistory() {
+  const s = statsFromHistory();
+
+  if (!state.history.length) {
+    return `
+      <div class="glass rounded-2xl p-8 text-center">
+        <div class="text-white font-black text-lg mb-2">Storico vuoto</div>
+        <div class="text-xs text-gray-500">Apri una partita e salva un pronostico: apparirà qui.</div>
+      </div>
+    `;
+  }
+
+  const cards = `
+    <div class="grid grid-cols-2 lg:grid-cols-4 gap-3">
+      <div class="glass rounded-2xl p-4">
+        <div class="text-xs text-gray-400 uppercase font-bold">Totali</div>
+        <div class="text-3xl font-black text-white mt-1">${s.total}</div>
+      </div>
+      <div class="glass rounded-2xl p-4">
+        <div class="text-xs text-gray-400 uppercase font-bold">Risolti</div>
+        <div class="text-3xl font-black text-white mt-1">${s.resolved}</div>
+      </div>
+      <div class="glass rounded-2xl p-4">
+        <div class="text-xs text-gray-400 uppercase font-bold">Vinti</div>
+        <div class="text-3xl font-black text-emerald-300 mt-1">${s.won}</div>
+      </div>
+      <div class="glass rounded-2xl p-4">
+        <div class="text-xs text-gray-400 uppercase font-bold">Hit-rate</div>
+        <div class="text-3xl font-black text-cyan-300 mt-1">${s.hit}%</div>
+      </div>
+    </div>
+  `;
+
+  let list = `<div class="glass rounded-2xl p-4 mt-3">
+    <div class="flex items-center justify-between mb-3">
+      <div class="font-black text-white">Ultimi pronostici</div>
+      <button id="btnClearHistory" class="btn px-3 py-2 rounded-xl text-xs font-bold text-rose-300">Svuota storico</button>
+    </div>
+    <div class="space-y-2">`;
+
+  state.history.slice(0, 60).forEach(p => {
+    const resultBadge =
+      p.result === "won" ? `<span class="chip px-2 py-1 rounded-full text-[11px] font-black text-emerald-300">VINTA</span>` :
+      p.result === "lost" ? `<span class="chip px-2 py-1 rounded-full text-[11px] font-black text-rose-300">PERSA</span>` :
+      `<span class="chip px-2 py-1 rounded-full text-[11px] font-black text-gray-300">APERTO</span>`;
+
+    const lineText = (p.line === "" || p.line == null) ? "" : ` ${p.line}`;
+    const pickText = `${p.pick}${lineText}`;
+
+    list += `
+      <div class="bg-black/30 rounded-2xl p-3 soft-border">
+        <div class="flex items-start justify-between gap-2">
+          <div class="min-w-0">
+            <div class="text-sm font-black text-white truncate">${escapeHtml(p.teams)}</div>
+            <div class="text-[11px] text-gray-400 truncate">${escapeHtml(p.tournament || "—")} • ${escapeHtml(p.date || "")}</div>
+          </div>
+          <div class="flex items-center gap-2">
+            ${resultBadge}
+            <span class="chip px-2 py-1 rounded-full text-[11px] font-black ${confClass(p.conf)}">C ${p.conf}</span>
+          </div>
+        </div>
+
+        <div class="flex items-center justify-between mt-2 gap-2 flex-wrap">
+          <div class="text-xs text-gray-300">
+            <span class="chip px-2 py-1 rounded-full text-[11px] font-black">${escapeHtml(p.type)}</span>
+            <span class="chip px-2 py-1 rounded-full text-[11px] font-black">${escapeHtml(p.market)}</span>
+            <span class="chip px-2 py-1 rounded-full text-[11px] font-black text-cyan-200">${escapeHtml(pickText)}</span>
+          </div>
+
+          <div class="flex gap-2">
+            <button class="btnResult btn px-3 py-2 rounded-xl text-xs font-black text-gray-900 grad-green" data-id="${p.id}" data-result="won">✅ Vinta</button>
+            <button class="btnResult btn px-3 py-2 rounded-xl text-xs font-black text-gray-900 grad-orange" data-id="${p.id}" data-result="lost">❌ Persa</button>
+            <button class="btnResult btn px-3 py-2 rounded-xl text-xs font-black" data-id="${p.id}" data-result="null">↩︎ Reset</button>
+          </div>
+        </div>
+      </div>
+    `;
+  });
+
+  list += `</div></div>`;
+  return cards + list;
+}
+
+function renderDebug() {
+  const raw = state.lastRaw || null;
+  const selected = state.selected ? { ev: state.selected.ev, st: state.selected.st } : null;
+
+  return `
+    <div class="glass rounded-2xl p-5">
+      <div class="font-black text-white mb-2">Debug JSON</div>
+      <div class="text-xs text-gray-400">Qui puoi vedere la risposta dell’endpoint eventi e l’eventuale dettaglio evento/statistiche.</div>
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-3 mt-4">
+        <div class="bg-black/30 rounded-2xl p-4 soft-border">
+          <div class="text-xs font-bold text-cyan-200 mb-2">Ultima lista eventi</div>
+          <pre class="mono text-[11px] text-gray-200 overflow-auto max-h-96 whitespace-pre-wrap">${escapeHtml(JSON.stringify(raw, null, 2) || "null")}</pre>
+        </div>
+        <div class="bg-black/30 rounded-2xl p-4 soft-border">
+          <div class="text-xs font-bold text-cyan-200 mb-2">Evento selezionato (se presente)</div>
+          <pre class="mono text-[11px] text-gray-200 overflow-auto max-h-96 whitespace-pre-wrap">${escapeHtml(JSON.stringify(selected, null, 2) || "null")}</pre>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+function render() {
+  const root = document.getElementById("content");
+
+  if (state.tab === "history") {
+    root.innerHTML = renderHistory();
+    bindHistoryEvents();
+    return;
+  }
+
+  if (state.tab === "debug") {
+    root.innerHTML = renderDebug();
+    return;
+  }
+
+  // matches tab
+  if (state.selected) {
+    root.innerHTML = renderSelected();
+    bindSelectedEvents();
+    return;
+  }
+
+  root.innerHTML = renderMatchesList();
+  bindMatchClicks();
+}
+
+/* ============================================================
+   BIND EVENTS
+   ============================================================ */
+
+function bindMatchClicks() {
+  document.querySelectorAll(".match-card").forEach(card => {
+    card.addEventListener("click", () => {
+      const id = card.getAttribute("data-id");
+      // se non c'è id vero, prova ad aprire comunque l'analisi dai dati base
+      const m = state.matches.find(x => String(x.id) === String(id));
+      if (!m) return;
+
+      // carica dettagli (se endpoint valido); in caso d'errore userà comunque base
+      loadEventDetails(m.id).catch(() => {});
+    });
+  });
+}
+
+function bindSelectedEvents() {
+  const back = document.getElementById("btnBack");
+  if (back) back.addEventListener("click", () => {
+    state.selected = null;
+    state.error = null;
+    setStatus("");
+    render();
+  });
+
+  document.querySelectorAll(".btnPick").forEach(btn => {
+    btn.addEventListener("click", () => {
+      const type = btn.getAttribute("data-type");
+      const market = btn.getAttribute("data-market");
+      const side = btn.getAttribute("data-side");
+      const line = btn.getAttribute("data-line") || "";
+      const pick = btn.getAttribute("data-pick");
+      const conf = parseFloat(btn.getAttribute("data-conf") || "50");
+
+      const match = {
+        id: state.selected.id,
+        home: state.selected.home,
+        away: state.selected.away,
+        tournament: state.selected.tournament,
+        startTs: state.selected.startTs
+      };
+
+      const entry = pickTemplate({ type, market, side, line, pick, conf, match });
+      addPick(entry);
+
+      setStatus("Pronostico salvato nello storico.");
+      refreshHeaderStats();
+      render();
+    });
+  });
+}
+
+function bindHistoryEvents() {
+  const btnClear = document.getElementById("btnClearHistory");
+  if (btnClear) {
+    btnClear.addEventListener("click", () => {
+      if (!confirm("Svuotare tutto lo storico?")) return;
+      state.history = [];
+      saveHistory();
+      render();
+    });
+  }
+
+  document.querySelectorAll(".btnResult").forEach(btn => {
+    btn.addEventListener("click", () => {
+      const id = parseInt(btn.getAttribute("data-id"), 10);
+      const r = btn.getAttribute("data-result");
+      updatePickResult(id, r === "null" ? null : r);
+    });
+  });
+}
+
+/* ============================================================
+   HEADER BUTTONS / TABS / SETTINGS
+   ============================================================ */
+
+function setActiveSportButtons() {
+  document.querySelectorAll(".sportBtn").forEach(b => {
+    const s = b.getAttribute("data-sport");
+    const isOn = s === state.sport;
+    b.classList.remove("grad-green", "grad-orange", "grad-purple", "text-gray-900", "text-white");
+    if (isOn) {
+      b.classList.add(sportMeta[s].grad);
+      b.classList.add("text-gray-900");
+    } else {
+      b.classList.add("text-white");
+    }
+  });
+
+  const badge = document.getElementById("sportBadge");
+  badge.className = `w-14 h-14 rounded-2xl ${sportMeta[state.sport].grad} flex items-center justify-center text-gray-900 font-black text-2xl pulse`;
+  badge.textContent = sportMeta[state.sport].badge;
+}
+
+function setActiveTabButtons() {
+  document.querySelectorAll(".tabBtn").forEach(b => {
+    const t = b.getAttribute("data-tab");
+    b.classList.remove("grad-purple", "text-white");
+    if (t === state.tab) {
+      b.classList.add("grad-purple", "text-white");
+    }
+  });
+}
+
+function toggleSettings(show) {
+  const panel = document.getElementById("settingsPanel");
+  if (typeof show === "boolean") {
+    panel.classList.toggle("hidden", !show);
+  } else {
+    panel.classList.toggle("hidden");
+  }
+}
+
+function populateSettingsInputs() {
+  document.getElementById("epScheduled").value = endpoints.scheduled;
+  document.getElementById("epEvent").value = endpoints.event;
+  document.getElementById("epStats").value = endpoints.stats;
+}
+
+function applySettingsFromInputs() {
+  endpoints = {
+    scheduled: document.getElementById("epScheduled").value.trim() || DEFAULT_ENDPOINTS.scheduled,
+    event: document.getElementById("epEvent").value.trim() || DEFAULT_ENDPOINTS.event,
+    stats: document.getElementById("epStats").value.trim() || DEFAULT_ENDPOINTS.stats,
+  };
+  saveSettings(endpoints);
+}
+
+document.getElementById("btnKey").addEventListener("click", promptKey);
+
+document.getElementById("btnToggleSettings").addEventListener("click", () => {
+  populateSettingsInputs();
+  toggleSettings();
+});
+
+document.getElementById("btnCloseSettings").addEventListener("click", () => toggleSettings(false));
+
+document
