@@ -1,0 +1,985 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🎯 BOMBA BET PRO</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+    
+    <!-- FIREBASE SDK -->
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js"></script>
+    
+    <style>
+        * { font-family: 'Outfit', sans-serif; box-sizing: border-box; }
+        
+        :root {
+            --bg-primary: #0f0f1a;
+            --bg-secondary: #1a1a2e;
+            --bg-card: rgba(26, 26, 46, 0.8);
+            --accent-green: #00f5a0;
+            --accent-blue: #00d9f5;
+            --accent-purple: #bd00ff;
+            --accent-orange: #ff6b35;
+            --accent-yellow: #f5c800;
+            --text-primary: #ffffff;
+            --text-secondary: #a0a0b0;
+        }
+        
+        body { 
+            background: linear-gradient(135deg, var(--bg-primary) 0%, #16162a 50%, var(--bg-primary) 100%);
+            color: var(--text-primary); 
+            min-height: 100vh;
+        }
+        
+        .bg-noise {
+            background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E");
+            opacity: 0.03;
+            position: fixed;
+            inset: 0;
+            pointer-events: none;
+            z-index: 0;
+        }
+        
+        .glass { 
+            background: var(--bg-card); 
+            backdrop-filter: blur(20px); 
+            border: 1px solid rgba(255,255,255,0.05);
+            border-radius: 16px;
+        }
+        
+        .glass-strong {
+            background: linear-gradient(135deg, rgba(0,245,160,0.1) 0%, rgba(0,217,245,0.05) 100%);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(0,245,160,0.2);
+            border-radius: 20px;
+        }
+        
+        .glow-green { box-shadow: 0 0 40px rgba(0,245,160,0.2), inset 0 0 40px rgba(0,245,160,0.05); }
+        
+        .gradient-text { 
+            background: linear-gradient(135deg, var(--accent-green), var(--accent-blue)); 
+            -webkit-background-clip: text; 
+            -webkit-text-fill-color: transparent; 
+        }
+        
+        .gradient-btn {
+            background: linear-gradient(135deg, var(--accent-green), var(--accent-blue));
+            transition: all 0.3s ease;
+        }
+        .gradient-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 30px rgba(0,245,160,0.3);
+        }
+        
+        .loader { animation: spin 1s linear infinite; }
+        @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+        
+        .slide-up { animation: slideUp 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards; opacity: 0; }
+        @keyframes slideUp { 
+            from { transform: translateY(30px); opacity: 0; } 
+            to { transform: translateY(0); opacity: 1; } 
+        }
+        
+        .pulse-dot { animation: pulse 2s ease-in-out infinite; }
+        @keyframes pulse {
+            0%, 100% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0.5; transform: scale(1.2); }
+        }
+        
+        select, input { 
+            background: rgba(255,255,255,0.05); 
+            border: 1px solid rgba(255,255,255,0.1); 
+            color: white; 
+            border-radius: 12px;
+            padding: 8px 12px;
+        }
+        
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: var(--accent-green); border-radius: 3px; }
+        
+        .match-card { 
+            transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+            cursor: pointer;
+        }
+        .match-card:hover { 
+            transform: translateY(-4px) scale(1.01);
+            border-color: rgba(0,245,160,0.3);
+            box-shadow: 0 20px 40px rgba(0,0,0,0.3);
+        }
+        
+        .stat-badge {
+            background: linear-gradient(135deg, rgba(0,245,160,0.2), rgba(0,217,245,0.1));
+            border: 1px solid rgba(0,245,160,0.3);
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+        
+        .pick-card {
+            background: linear-gradient(135deg, rgba(26,26,46,0.9), rgba(26,26,46,0.7));
+            border: 1px solid rgba(255,255,255,0.05);
+            border-radius: 12px;
+            padding: 12px;
+            transition: all 0.2s ease;
+        }
+        .pick-card:hover { border-color: rgba(0,245,160,0.3); }
+        
+        .conf-badge {
+            padding: 4px 10px;
+            border-radius: 8px;
+            font-size: 11px;
+            font-weight: 700;
+        }
+        .conf-high { background: rgba(0,245,160,0.2); color: #00f5a0; }
+        .conf-mid { background: rgba(245,200,0,0.2); color: #f5c800; }
+        .conf-low { background: rgba(255,107,53,0.2); color: #ff6b35; }
+        
+        .league-chip {
+            padding: 8px 14px;
+            border-radius: 10px;
+            font-weight: 600;
+            font-size: 13px;
+            transition: all 0.2s ease;
+            white-space: nowrap;
+        }
+        .league-chip.active {
+            background: linear-gradient(135deg, var(--accent-green), var(--accent-blue));
+            color: #0f0f1a;
+        }
+        .league-chip:not(.active) {
+            background: rgba(255,255,255,0.05);
+            color: var(--text-secondary);
+        }
+        
+        .result-won { background: rgba(0,245,160,0.1); border-color: rgba(0,245,160,0.3); }
+        .result-lost { background: rgba(255,107,53,0.1); border-color: rgba(255,107,53,0.3); }
+    </style>
+</head>
+<body>
+    <div class="bg-noise"></div>
+    <div id="root" class="relative z-10"></div>
+
+    <script>
+        // ============================================================
+        // 🎯 BOMBA BET V10 - PRO EDITION
+        // ============================================================
+
+        // 🔥 FIREBASE CONFIG - NON MODIFICARE
+        const firebaseConfig = {
+            apiKey: "AIzaSyAzXGyOUDeok9zHZ3Lrqplb9I4u2xxGsPY",
+            authDomain: "bombabet26.firebaseapp.com",
+            databaseURL: "https://bombabet26-default-rtdb.europe-west1.firebasedatabase.app",
+            projectId: "bombabet26",
+            storageBucket: "bombabet26.firebasestorage.app",
+            messagingSenderId: "765939756236",
+            appId: "1:765939756236:web:e071a398659e1171fc2669"
+        };
+
+        // 🔑 RAPIDAPI KEY - LA TUA
+        const RAPIDAPI_KEY = "f5cd8f40a3msh8b0c259403bcc6dp169c83jsn1d5284779ac4";
+
+        // API Hosts - MANTENUTO UGUALE AL TUO FILE
+        const API_HOSTS = {
+            football: "api-football-v1.p.rapidapi.com",
+            basketball: "api-basketball.p.rapidapi.com",
+            tennis: "api-tennis.p.rapidapi.com"
+        };
+
+        // Initialize Firebase
+        let auth, database;
+        try {
+            firebase.initializeApp(firebaseConfig);
+            auth = firebase.auth();
+            database = firebase.database();
+        } catch (e) { console.error('Firebase init error:', e); }
+
+        // ============================================================
+        // 🏆 CAMPIONATI
+        // ============================================================
+        
+        const FOOTBALL_LEAGUES = {
+            135: { name: "Serie A", flag: "🇮🇹" },
+            39: { name: "Premier League", flag: "🏴󠁧󠁢󠁥󠁮󠁧󠁿" },
+            140: { name: "La Liga", flag: "🇪🇸" },
+            78: { name: "Bundesliga", flag: "🇩🇪" },
+            61: { name: "Ligue 1", flag: "🇫🇷" },
+            136: { name: "Serie B", flag: "🇮🇹" },
+            40: { name: "Championship", flag: "🏴󠁧󠁢󠁥󠁮󠁧󠁿" },
+            88: { name: "Eredivisie", flag: "🇳🇱" },
+            94: { name: "Primeira Liga", flag: "🇵🇹" },
+            144: { name: "Jupiler Pro", flag: "🇧🇪" },
+            203: { name: "Super Lig", flag: "🇹🇷" },
+            2: { name: "Champions League", flag: "🏆" },
+            3: { name: "Europa League", flag: "🏆" },
+            848: { name: "Conference League", flag: "🏆" }
+        };
+
+        // ============================================================
+        // 📊 DATABASE STATISTICHE SQUADRE
+        // ============================================================
+        
+        const TEAM_STATS = {
+            'Juventus': { corners: 5.8, cornersAg: 4.2, cards: 2.1, cardsAg: 1.8, ggRate: 48 },
+            'Inter': { corners: 6.2, cornersAg: 3.8, cards: 1.9, cardsAg: 2.0, ggRate: 55 },
+            'Milan': { corners: 5.5, cornersAg: 4.5, cards: 2.3, cardsAg: 1.9, ggRate: 58 },
+            'AC Milan': { corners: 5.5, cornersAg: 4.5, cards: 2.3, cardsAg: 1.9, ggRate: 58 },
+            'Napoli': { corners: 5.9, cornersAg: 4.0, cards: 2.0, cardsAg: 2.1, ggRate: 55 },
+            'Roma': { corners: 5.3, cornersAg: 4.8, cards: 2.4, cardsAg: 2.0, ggRate: 52 },
+            'AS Roma': { corners: 5.3, cornersAg: 4.8, cards: 2.4, cardsAg: 2.0, ggRate: 52 },
+            'Lazio': { corners: 5.4, cornersAg: 4.6, cards: 2.2, cardsAg: 2.2, ggRate: 60 },
+            'Atalanta': { corners: 6.0, cornersAg: 4.1, cards: 2.1, cardsAg: 1.8, ggRate: 65 },
+            'Fiorentina': { corners: 5.2, cornersAg: 4.9, cards: 2.3, cardsAg: 2.1, ggRate: 55 },
+            'Bologna': { corners: 5.1, cornersAg: 5.0, cards: 2.0, cardsAg: 2.3, ggRate: 50 },
+            'Torino': { corners: 4.8, cornersAg: 5.2, cards: 2.4, cardsAg: 2.0, ggRate: 52 },
+            'Monza': { corners: 4.5, cornersAg: 5.5, cards: 2.2, cardsAg: 2.1, ggRate: 48 },
+            'Udinese': { corners: 4.6, cornersAg: 5.3, cards: 2.3, cardsAg: 2.0, ggRate: 45 },
+            'Genoa': { corners: 4.4, cornersAg: 5.6, cards: 2.5, cardsAg: 1.9, ggRate: 42 },
+            'Cagliari': { corners: 4.3, cornersAg: 5.7, cards: 2.4, cardsAg: 2.2, ggRate: 48 },
+            'Empoli': { corners: 4.2, cornersAg: 5.8, cards: 2.1, cardsAg: 2.3, ggRate: 40 },
+            'Parma': { corners: 4.5, cornersAg: 5.5, cards: 2.2, cardsAg: 2.1, ggRate: 50 },
+            'Verona': { corners: 4.4, cornersAg: 5.6, cards: 2.3, cardsAg: 2.0, ggRate: 52 },
+            'Hellas Verona': { corners: 4.4, cornersAg: 5.6, cards: 2.3, cardsAg: 2.0, ggRate: 52 },
+            'Como': { corners: 4.3, cornersAg: 5.7, cards: 2.0, cardsAg: 2.2, ggRate: 45 },
+            'Lecce': { corners: 4.1, cornersAg: 5.9, cards: 2.4, cardsAg: 2.1, ggRate: 38 },
+            'Venezia': { corners: 4.0, cornersAg: 6.0, cards: 2.2, cardsAg: 2.3, ggRate: 42 },
+            'Manchester City': { corners: 7.2, cornersAg: 3.1, cards: 1.5, cardsAg: 1.8, ggRate: 48 },
+            'Arsenal': { corners: 6.5, cornersAg: 3.8, cards: 1.7, cardsAg: 1.9, ggRate: 52 },
+            'Liverpool': { corners: 6.8, cornersAg: 3.5, cards: 1.6, cardsAg: 2.0, ggRate: 58 },
+            'Chelsea': { corners: 5.8, cornersAg: 4.2, cards: 1.9, cardsAg: 1.8, ggRate: 55 },
+            'Manchester United': { corners: 5.5, cornersAg: 4.8, cards: 2.0, cardsAg: 1.7, ggRate: 58 },
+            'Tottenham': { corners: 5.9, cornersAg: 4.5, cards: 1.8, cardsAg: 2.1, ggRate: 62 },
+            'Newcastle': { corners: 5.6, cornersAg: 4.6, cards: 1.9, cardsAg: 1.9, ggRate: 52 },
+            'Aston Villa': { corners: 5.4, cornersAg: 4.8, cards: 2.0, cardsAg: 1.8, ggRate: 58 },
+            'Brighton': { corners: 5.3, cornersAg: 4.7, cards: 1.8, cardsAg: 2.0, ggRate: 55 },
+            'West Ham': { corners: 5.0, cornersAg: 5.0, cards: 2.1, cardsAg: 1.9, ggRate: 52 },
+            'Real Madrid': { corners: 6.8, cornersAg: 3.2, cards: 2.0, cardsAg: 2.4, ggRate: 50 },
+            'Barcelona': { corners: 7.0, cornersAg: 3.0, cards: 1.8, cardsAg: 2.5, ggRate: 55 },
+            'Atletico Madrid': { corners: 5.2, cornersAg: 4.0, cards: 2.8, cardsAg: 2.2, ggRate: 42 },
+            'Bayern Munich': { corners: 7.5, cornersAg: 2.8, cards: 1.4, cardsAg: 1.9, ggRate: 62 },
+            'Bayern': { corners: 7.5, cornersAg: 2.8, cards: 1.4, cardsAg: 1.9, ggRate: 62 },
+            'Bayer Leverkusen': { corners: 6.8, cornersAg: 3.2, cards: 1.6, cardsAg: 1.8, ggRate: 55 },
+            'Leverkusen': { corners: 6.8, cornersAg: 3.2, cards: 1.6, cardsAg: 1.8, ggRate: 55 },
+            'Borussia Dortmund': { corners: 6.2, cornersAg: 4.0, cards: 1.7, cardsAg: 1.7, ggRate: 65 },
+            'Dortmund': { corners: 6.2, cornersAg: 4.0, cards: 1.7, cardsAg: 1.7, ggRate: 65 },
+            'PSG': { corners: 7.8, cornersAg: 2.5, cards: 1.6, cardsAg: 2.2, ggRate: 45 },
+            'Paris Saint Germain': { corners: 7.8, cornersAg: 2.5, cards: 1.6, cardsAg: 2.2, ggRate: 45 },
+            'Monaco': { corners: 5.8, cornersAg: 4.2, cards: 1.9, cardsAg: 2.0, ggRate: 58 },
+            'Marseille': { corners: 5.5, cornersAg: 4.6, cards: 2.2, cardsAg: 2.1, ggRate: 55 },
+            'Lyon': { corners: 5.6, cornersAg: 4.5, cards: 2.0, cardsAg: 2.2, ggRate: 58 },
+            'Ajax': { corners: 6.5, cornersAg: 3.5, cards: 1.8, cardsAg: 2.0, ggRate: 65 },
+            'PSV': { corners: 6.8, cornersAg: 3.2, cards: 1.6, cardsAg: 1.8, ggRate: 62 },
+            'PSV Eindhoven': { corners: 6.8, cornersAg: 3.2, cards: 1.6, cardsAg: 1.8, ggRate: 62 },
+            'Feyenoord': { corners: 6.0, cornersAg: 4.0, cards: 2.0, cardsAg: 1.9, ggRate: 68 },
+            'Benfica': { corners: 6.5, cornersAg: 3.5, cards: 1.9, cardsAg: 2.1, ggRate: 58 },
+            'Porto': { corners: 6.2, cornersAg: 3.8, cards: 2.1, cardsAg: 2.0, ggRate: 52 },
+            'Sporting CP': { corners: 6.0, cornersAg: 4.0, cards: 1.8, cardsAg: 2.2, ggRate: 55 },
+            'Sporting': { corners: 6.0, cornersAg: 4.0, cards: 1.8, cardsAg: 2.2, ggRate: 55 }
+        };
+
+        // ============================================================
+        // STATE
+        // ============================================================
+
+        let state = {
+            user: null,
+            authLoading: true,
+            activeTab: 'matches',
+            selectedLeague: 135,
+            matches: [],
+            selectedMatch: null,
+            loading: false,
+            error: null,
+            history: [],
+            syncStatus: 'offline'
+        };
+
+        // ============================================================
+        // FIREBASE
+        // ============================================================
+
+        function setupAuthListener() {
+            if (!auth) {
+                state.authLoading = false;
+                state.history = JSON.parse(localStorage.getItem('bombaBetHistory') || '[]');
+                render();
+                return;
+            }
+            
+            auth.onAuthStateChanged((user) => {
+                state.user = user;
+                state.authLoading = false;
+                if (user) {
+                    loadCloudHistory();
+                    setupRealtimeSync();
+                } else {
+                    state.history = JSON.parse(localStorage.getItem('bombaBetHistory') || '[]');
+                    state.syncStatus = 'offline';
+                }
+                render();
+            });
+        }
+
+        async function signInWithGoogle() {
+            try {
+                await auth.signInWithPopup(new firebase.auth.GoogleAuthProvider());
+            } catch (e) { alert('Errore login: ' + e.message); }
+        }
+
+        async function signOut() {
+            await auth.signOut();
+            state.user = null;
+            state.history = [];
+            render();
+        }
+
+        async function loadCloudHistory() {
+            state.syncStatus = 'syncing';
+            try {
+                const snapshot = await database.ref(`users/${state.user.uid}/history`).once('value');
+                state.history = snapshot.val() ? Object.values(snapshot.val()) : [];
+                state.syncStatus = 'synced';
+            } catch (e) { state.syncStatus = 'offline'; }
+            render();
+        }
+
+        function setupRealtimeSync() {
+            database.ref(`users/${state.user.uid}/history`).on('value', (snapshot) => {
+                state.history = snapshot.val() ? Object.values(snapshot.val()) : [];
+                state.syncStatus = 'synced';
+                render();
+            });
+        }
+
+        async function saveToCloud(entry) {
+            if (database && state.user) {
+                await database.ref(`users/${state.user.uid}/history/${entry.id}`).set(entry);
+            } else {
+                state.history.unshift(entry);
+                localStorage.setItem('bombaBetHistory', JSON.stringify(state.history));
+            }
+            render();
+        }
+
+        async function updateResult(id, result) {
+            if (database && state.user) {
+                await database.ref(`users/${state.user.uid}/history/${id}/result`).set(result);
+            }
+            const entry = state.history.find(e => e.id === id);
+            if (entry) entry.result = result;
+            localStorage.setItem('bombaBetHistory', JSON.stringify(state.history));
+            render();
+        }
+
+        // ============================================================
+        // RAPIDAPI CALLS - MANTENUTO IDENTICO AL TUO FILE
+        // ============================================================
+
+        async function apiCall(sport, endpoint) {
+            const host = API_HOSTS[sport];
+            const url = `https://${host}${endpoint}`;
+            
+            console.log(`📡 API Call: ${url}`);
+            
+            const response = await fetch(url, {
+                method: 'GET',
+                headers: {
+                    'X-RapidAPI-Key': RAPIDAPI_KEY,
+                    'X-RapidAPI-Host': host
+                }
+            });
+            
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            }
+            
+            const data = await response.json();
+            console.log(`✅ Response:`, data);
+            return data;
+        }
+
+        async function loadMatches() {
+            state.loading = true;
+            state.error = null;
+            state.matches = [];
+            state.selectedMatch = null;
+            render();
+
+            try {
+                console.log(`⚽ Loading football - League ${state.selectedLeague}`);
+                const data = await apiCall('football', `/v3/fixtures?league=${state.selectedLeague}&season=2024&next=15`);
+                
+                if (data.response && data.response.length > 0) {
+                    // Ordina per data cronologica
+                    state.matches = data.response.sort((a, b) => 
+                        new Date(a.fixture.date) - new Date(b.fixture.date)
+                    );
+                    console.log(`✅ Found ${state.matches.length} matches`);
+                } else {
+                    state.error = 'Nessuna partita trovata per questo campionato';
+                }
+            } catch (e) {
+                console.error('❌ API Error:', e);
+                state.error = 'Errore: ' + e.message;
+            }
+
+            state.loading = false;
+            render();
+        }
+
+        // ============================================================
+        // ANALISI ALGORITMI
+        // ============================================================
+
+        function getTeamStats(name) {
+            if (!name) return { corners: 5.0, cornersAg: 5.0, cards: 2.0, cardsAg: 2.0, ggRate: 50 };
+            
+            for (const [team, stats] of Object.entries(TEAM_STATS)) {
+                if (name.toLowerCase().includes(team.toLowerCase()) || team.toLowerCase().includes(name.toLowerCase())) {
+                    return stats;
+                }
+            }
+            return { corners: 5.0, cornersAg: 5.0, cards: 2.0, cardsAg: 2.0, ggRate: 50 };
+        }
+
+        function analyzeMatch(home, away) {
+            const h = getTeamStats(home);
+            const a = getTeamStats(away);
+
+            // GG Analysis
+            const avgGGRate = (h.ggRate + a.ggRate) / 2;
+            const ggProb = Math.max(30, Math.min(75, avgGGRate));
+            const ggConf = 45 + Math.abs(ggProb - 50) * 0.7;
+
+            // Corner Analysis
+            const homeCornersExp = (h.corners * 1.08 + a.cornersAg * 0.92) / 2;
+            const awayCornersExp = (a.corners * 0.92 + h.cornersAg * 1.08) / 2;
+            const totalCornersExp = homeCornersExp + awayCornersExp;
+
+            const cornerLines = [8.5, 9.5, 10.5, 11.5];
+            const cornerPreds = cornerLines.map(line => ({
+                line,
+                pick: totalCornersExp > line ? 'OVER' : 'UNDER',
+                conf: Math.min(85, 50 + Math.abs(totalCornersExp - line) * 9)
+            }));
+
+            // Cards Analysis
+            const homeCardsExp = (h.cards * 0.9 + a.cardsAg * 1.1) / 2;
+            const awayCardsExp = (a.cards * 1.1 + h.cardsAg * 0.9) / 2;
+            const totalCardsExp = homeCardsExp + awayCardsExp;
+
+            const cardLines = [3.5, 4.5, 5.5];
+            const cardPreds = cardLines.map(line => ({
+                line,
+                pick: totalCardsExp > line ? 'OVER' : 'UNDER',
+                conf: Math.min(82, 48 + Math.abs(totalCardsExp - line) * 11)
+            }));
+
+            return {
+                gg: { prob: ggProb, conf: ggConf },
+                corners: {
+                    total: totalCornersExp,
+                    home: homeCornersExp,
+                    away: awayCornersExp,
+                    preds: cornerPreds
+                },
+                cards: {
+                    total: totalCardsExp,
+                    home: homeCardsExp,
+                    away: awayCardsExp,
+                    preds: cardPreds
+                }
+            };
+        }
+
+        // ============================================================
+        // SAVE & STATS
+        // ============================================================
+
+        async function savePick(matchInfo, pickType, pickValue, conf) {
+            const entry = { 
+                id: Date.now(), 
+                matchInfo,
+                pickType,
+                pickValue,
+                conf: Math.round(conf), 
+                result: null, 
+                date: new Date().toISOString() 
+            };
+            await saveToCloud(entry);
+            showToast('✅ Pronostico salvato!');
+        }
+
+        function showToast(msg) {
+            const toast = document.createElement('div');
+            toast.className = 'fixed bottom-24 left-1/2 transform -translate-x-1/2 bg-gradient-to-r from-green-500 to-cyan-500 text-black px-6 py-3 rounded-full font-bold z-50 slide-up';
+            toast.textContent = msg;
+            document.body.appendChild(toast);
+            setTimeout(() => toast.remove(), 2000);
+        }
+
+        function getStats() {
+            const resolved = state.history.filter(e => e.result);
+            const won = resolved.filter(e => e.result === 'won').length;
+            return { 
+                total: state.history.length, 
+                won, 
+                lost: resolved.length - won, 
+                pending: state.history.length - resolved.length,
+                hitRate: resolved.length ? (won / resolved.length * 100).toFixed(1) : 0 
+            };
+        }
+
+        // ============================================================
+        // RENDER
+        // ============================================================
+
+        function formatDateTime(dateStr) {
+            if (!dateStr) return { date: '--', time: '--' };
+            const d = new Date(dateStr);
+            return {
+                date: d.toLocaleDateString('it-IT', { weekday: 'short', day: '2-digit', month: 'short' }),
+                time: d.toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' })
+            };
+        }
+
+        function confBadgeClass(v) {
+            return v >= 65 ? 'conf-high' : v >= 52 ? 'conf-mid' : 'conf-low';
+        }
+
+        function escapeHtml(str) {
+            return str.replace(/'/g, "\\'").replace(/"/g, '\\"');
+        }
+
+        function render() {
+            const root = document.getElementById('root');
+
+            if (state.authLoading) {
+                root.innerHTML = `
+                    <div class="min-h-screen flex items-center justify-center">
+                        <div class="text-center">
+                            <div class="w-16 h-16 border-4 border-t-transparent border-cyan-400 rounded-full loader mx-auto mb-4"></div>
+                            <p class="text-gray-400">Caricamento...</p>
+                        </div>
+                    </div>`;
+                return;
+            }
+
+            if (!state.user) {
+                root.innerHTML = `
+                    <div class="min-h-screen flex items-center justify-center p-4">
+                        <div class="glass-strong p-8 max-w-md w-full slide-up glow-green">
+                            <div class="text-center mb-8">
+                                <div class="w-28 h-28 rounded-3xl bg-gradient-to-br from-green-400 via-cyan-500 to-blue-500 flex items-center justify-center mx-auto mb-6 shadow-2xl">
+                                    <span class="text-6xl">⚽</span>
+                                </div>
+                                <h1 class="text-4xl font-black gradient-text mb-2">BOMBA BET</h1>
+                                <p class="text-gray-400">Analisi Calcistiche PRO</p>
+                            </div>
+                            
+                            <div class="grid grid-cols-3 gap-3 mb-8">
+                                <div class="glass p-4 text-center rounded-xl">
+                                    <span class="text-2xl">⚽</span>
+                                    <p class="text-xs text-gray-400 mt-2">GG/NG</p>
+                                </div>
+                                <div class="glass p-4 text-center rounded-xl">
+                                    <span class="text-2xl">🚩</span>
+                                    <p class="text-xs text-gray-400 mt-2">Corner</p>
+                                </div>
+                                <div class="glass p-4 text-center rounded-xl">
+                                    <span class="text-2xl">🟨</span>
+                                    <p class="text-xs text-gray-400 mt-2">Cards</p>
+                                </div>
+                            </div>
+                            
+                            <button onclick="signInWithGoogle()" class="w-full py-4 rounded-2xl font-bold gradient-btn text-black flex items-center justify-center gap-3 text-lg">
+                                <img src="https://www.google.com/favicon.ico" class="w-6 h-6"/> Accedi con Google
+                            </button>
+                        </div>
+                    </div>`;
+                return;
+            }
+
+            let content = '';
+
+            // ========== TAB PARTITE ==========
+            if (state.activeTab === 'matches') {
+                if (state.selectedMatch) {
+                    const m = state.selectedMatch;
+                    const home = m.teams.home.name;
+                    const away = m.teams.away.name;
+                    const analysis = analyzeMatch(home, away);
+                    const dt = formatDateTime(m.fixture.date);
+                    const matchInfo = `${home} vs ${away}`;
+                    const safeMatch = escapeHtml(matchInfo);
+                    const safeHome = escapeHtml(home);
+                    const safeAway = escapeHtml(away);
+
+                    content = `
+                        <div class="slide-up">
+                            <button onclick="state.selectedMatch=null;render()" class="flex items-center gap-2 text-gray-400 mb-4 hover:text-white transition">
+                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg>
+                                Torna alle partite
+                            </button>
+                            
+                            <!-- Match Header -->
+                            <div class="glass-strong p-6 mb-6 glow-green">
+                                <div class="flex items-center justify-between mb-4">
+                                    <span class="stat-badge">${m.league?.name || 'League'}</span>
+                                    <span class="text-sm text-gray-400">${dt.date} • ${dt.time}</span>
+                                </div>
+                                <div class="flex items-center justify-between">
+                                    <div class="flex-1 text-center">
+                                        ${m.teams.home.logo ? `<img src="${m.teams.home.logo}" class="w-16 h-16 mx-auto mb-2"/>` : '<div class="w-16 h-16 bg-gray-700 rounded-full mx-auto mb-2"></div>'}
+                                        <p class="font-bold text-lg">${home}</p>
+                                        <p class="text-xs text-gray-500">Casa</p>
+                                    </div>
+                                    <div class="px-6">
+                                        <div class="w-14 h-14 rounded-full bg-gradient-to-br from-green-400 to-cyan-500 flex items-center justify-center">
+                                            <span class="text-black font-black text-lg">VS</span>
+                                        </div>
+                                    </div>
+                                    <div class="flex-1 text-center">
+                                        ${m.teams.away.logo ? `<img src="${m.teams.away.logo}" class="w-16 h-16 mx-auto mb-2"/>` : '<div class="w-16 h-16 bg-gray-700 rounded-full mx-auto mb-2"></div>'}
+                                        <p class="font-bold text-lg">${away}</p>
+                                        <p class="text-xs text-gray-500">Ospite</p>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- GG Section -->
+                            <div class="glass p-5 mb-4">
+                                <div class="flex items-center gap-3 mb-4">
+                                    <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-green-400 to-cyan-500 flex items-center justify-center">
+                                        <span class="text-lg">⚽</span>
+                                    </div>
+                                    <div>
+                                        <h3 class="font-bold text-lg">Goal / Goal</h3>
+                                        <p class="text-xs text-gray-500">Entrambe le squadre segnano</p>
+                                    </div>
+                                </div>
+                                <div class="grid grid-cols-2 gap-3">
+                                    <div class="pick-card text-center ${analysis.gg.prob > 52 ? 'border-green-500/50' : ''}">
+                                        <p class="font-black text-2xl mb-1">GG</p>
+                                        <p class="text-sm text-gray-400 mb-2">${analysis.gg.prob.toFixed(0)}%</p>
+                                        <span class="conf-badge ${confBadgeClass(analysis.gg.conf)}">${analysis.gg.conf.toFixed(0)}%</span>
+                                        <button onclick="savePick('${safeMatch}', 'GG', 'GG', ${analysis.gg.conf})" class="mt-3 w-full py-2 rounded-lg gradient-btn text-black text-sm font-bold">💾 Salva</button>
+                                    </div>
+                                    <div class="pick-card text-center ${analysis.gg.prob <= 52 ? 'border-green-500/50' : ''}">
+                                        <p class="font-black text-2xl mb-1">NG</p>
+                                        <p class="text-sm text-gray-400 mb-2">${(100 - analysis.gg.prob).toFixed(0)}%</p>
+                                        <span class="conf-badge ${confBadgeClass(100 - analysis.gg.conf)}">${(100 - analysis.gg.conf).toFixed(0)}%</span>
+                                        <button onclick="savePick('${safeMatch}', 'GG', 'NG', ${100 - analysis.gg.conf})" class="mt-3 w-full py-2 rounded-lg gradient-btn text-black text-sm font-bold">💾 Salva</button>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- CORNER Section -->
+                            <div class="glass p-5 mb-4">
+                                <div class="flex items-center gap-3 mb-4">
+                                    <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-yellow-400 to-orange-500 flex items-center justify-center">
+                                        <span class="text-lg">🚩</span>
+                                    </div>
+                                    <div>
+                                        <h3 class="font-bold text-lg">Corner</h3>
+                                        <p class="text-xs text-gray-500">Exp. Totale: ${analysis.corners.total.toFixed(1)}</p>
+                                    </div>
+                                </div>
+                                
+                                <!-- Corner Totale -->
+                                <p class="text-sm font-semibold text-gray-400 mb-2">📊 Totale Partita</p>
+                                <div class="grid grid-cols-2 gap-2 mb-4">
+                                    ${analysis.corners.preds.map(p => `
+                                        <div class="pick-card flex items-center justify-between">
+                                            <div>
+                                                <p class="font-bold">${p.pick} ${p.line}</p>
+                                            </div>
+                                            <div class="flex items-center gap-2">
+                                                <span class="conf-badge ${confBadgeClass(p.conf)}">${p.conf.toFixed(0)}%</span>
+                                                <button onclick="savePick('${safeMatch}', 'Corner', '${p.pick} ${p.line}', ${p.conf})" class="w-8 h-8 rounded-lg bg-gradient-to-br from-yellow-400 to-orange-500 flex items-center justify-center text-black text-sm">💾</button>
+                                            </div>
+                                        </div>
+                                    `).join('')}
+                                </div>
+                                
+                                <!-- Corner Casa/Ospite -->
+                                <p class="text-sm font-semibold text-gray-400 mb-2">🏠 Casa vs 🚌 Ospite</p>
+                                <div class="grid grid-cols-2 gap-3">
+                                    <div class="pick-card text-center">
+                                        <p class="text-xs text-gray-500 mb-1">🏠 ${home.split(' ')[0]}</p>
+                                        <p class="font-black text-xl gradient-text">${analysis.corners.home.toFixed(1)}</p>
+                                        <div class="flex gap-1 mt-2 justify-center flex-wrap">
+                                            <button onclick="savePick('${safeMatch}', 'Corner Casa', 'O3.5 ${safeHome}', 60)" class="text-xs px-2 py-1 rounded bg-yellow-500/20 text-yellow-400 hover:bg-yellow-500/30">O3.5</button>
+                                            <button onclick="savePick('${safeMatch}', 'Corner Casa', 'O4.5 ${safeHome}', 55)" class="text-xs px-2 py-1 rounded bg-yellow-500/20 text-yellow-400 hover:bg-yellow-500/30">O4.5</button>
+                                        </div>
+                                    </div>
+                                    <div class="pick-card text-center">
+                                        <p class="text-xs text-gray-500 mb-1">🚌 ${away.split(' ')[0]}</p>
+                                        <p class="font-black text-xl gradient-text">${analysis.corners.away.toFixed(1)}</p>
+                                        <div class="flex gap-1 mt-2 justify-center flex-wrap">
+                                            <button onclick="savePick('${safeMatch}', 'Corner Ospite', 'O3.5 ${safeAway}', 58)" class="text-xs px-2 py-1 rounded bg-yellow-500/20 text-yellow-400 hover:bg-yellow-500/30">O3.5</button>
+                                            <button onclick="savePick('${safeMatch}', 'Corner Ospite', 'O4.5 ${safeAway}', 52)" class="text-xs px-2 py-1 rounded bg-yellow-500/20 text-yellow-400 hover:bg-yellow-500/30">O4.5</button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- CARDS Section -->
+                            <div class="glass p-5 mb-4">
+                                <div class="flex items-center gap-3 mb-4">
+                                    <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-red-400 to-pink-500 flex items-center justify-center">
+                                        <span class="text-lg">🟨</span>
+                                    </div>
+                                    <div>
+                                        <h3 class="font-bold text-lg">Cartellini</h3>
+                                        <p class="text-xs text-gray-500">Exp. Totale: ${analysis.cards.total.toFixed(1)}</p>
+                                    </div>
+                                </div>
+                                
+                                <!-- Cards Totale -->
+                                <p class="text-sm font-semibold text-gray-400 mb-2">📊 Totale Partita</p>
+                                <div class="grid grid-cols-2 gap-2 mb-4">
+                                    ${analysis.cards.preds.map(p => `
+                                        <div class="pick-card flex items-center justify-between">
+                                            <div>
+                                                <p class="font-bold">${p.pick} ${p.line}</p>
+                                            </div>
+                                            <div class="flex items-center gap-2">
+                                                <span class="conf-badge ${confBadgeClass(p.conf)}">${p.conf.toFixed(0)}%</span>
+                                                <button onclick="savePick('${safeMatch}', 'Cards', '${p.pick} ${p.line}', ${p.conf})" class="w-8 h-8 rounded-lg bg-gradient-to-br from-red-400 to-pink-500 flex items-center justify-center text-white text-sm">💾</button>
+                                            </div>
+                                        </div>
+                                    `).join('')}
+                                </div>
+                                
+                                <!-- Cards Casa/Ospite -->
+                                <p class="text-sm font-semibold text-gray-400 mb-2">🏠 Casa vs 🚌 Ospite</p>
+                                <div class="grid grid-cols-2 gap-3">
+                                    <div class="pick-card text-center">
+                                        <p class="text-xs text-gray-500 mb-1">🏠 ${home.split(' ')[0]}</p>
+                                        <p class="font-black text-xl gradient-text">${analysis.cards.home.toFixed(1)}</p>
+                                        <div class="flex gap-1 mt-2 justify-center flex-wrap">
+                                            <button onclick="savePick('${safeMatch}', 'Cards Casa', 'O1.5 ${safeHome}', 58)" class="text-xs px-2 py-1 rounded bg-red-500/20 text-red-400 hover:bg-red-500/30">O1.5</button>
+                                            <button onclick="savePick('${safeMatch}', 'Cards Casa', 'O2.5 ${safeHome}', 50)" class="text-xs px-2 py-1 rounded bg-red-500/20 text-red-400 hover:bg-red-500/30">O2.5</button>
+                                        </div>
+                                    </div>
+                                    <div class="pick-card text-center">
+                                        <p class="text-xs text-gray-500 mb-1">🚌 ${away.split(' ')[0]}</p>
+                                        <p class="font-black text-xl gradient-text">${analysis.cards.away.toFixed(1)}</p>
+                                        <div class="flex gap-1 mt-2 justify-center flex-wrap">
+                                            <button onclick="savePick('${safeMatch}', 'Cards Ospite', 'O1.5 ${safeAway}', 60)" class="text-xs px-2 py-1 rounded bg-red-500/20 text-red-400 hover:bg-red-500/30">O1.5</button>
+                                            <button onclick="savePick('${safeMatch}', 'Cards Ospite', 'O2.5 ${safeAway}', 52)" class="text-xs px-2 py-1 rounded bg-red-500/20 text-red-400 hover:bg-red-500/30">O2.5</button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                } else {
+                    // Lista Partite
+                    content = `
+                        <!-- League Selector -->
+                        <div class="flex gap-2 overflow-x-auto pb-3 mb-4 -mx-1 px-1">
+                            ${Object.entries(FOOTBALL_LEAGUES).slice(0, 8).map(([id, l]) => `
+                                <button onclick="state.selectedLeague=${id};loadMatches()" class="league-chip ${state.selectedLeague == id ? 'active' : ''}">
+                                    ${l.flag} ${l.name.split(' ')[0]}
+                                </button>
+                            `).join('')}
+                        </div>
+                        
+                        <div class="flex items-center justify-between mb-4">
+                            <h2 class="text-xl font-bold">📅 Prossime Partite</h2>
+                            <button onclick="loadMatches()" class="gradient-btn px-4 py-2 rounded-xl text-black font-bold text-sm ${state.loading ? 'opacity-50' : ''}">
+                                ${state.loading ? '⏳' : '🔄'} Carica
+                            </button>
+                        </div>
+                        
+                        ${state.loading ? `
+                            <div class="glass p-12 text-center">
+                                <div class="w-12 h-12 border-4 border-t-transparent border-cyan-400 rounded-full loader mx-auto mb-4"></div>
+                                <p class="text-gray-400">Caricamento partite...</p>
+                            </div>
+                        ` : state.error ? `
+                            <div class="glass p-8 text-center">
+                                <p class="text-red-400 mb-2">⚠️ ${state.error}</p>
+                                <button onclick="loadMatches()" class="text-cyan-400 text-sm">Riprova</button>
+                            </div>
+                        ` : state.matches.length === 0 ? `
+                            <div class="glass p-12 text-center">
+                                <div class="w-20 h-20 rounded-full bg-gray-800 flex items-center justify-center mx-auto mb-4">
+                                    <span class="text-4xl">⚽</span>
+                                </div>
+                                <p class="text-gray-400 mb-2">Nessuna partita caricata</p>
+                                <p class="text-sm text-gray-500">Clicca "Carica" per vedere le partite</p>
+                            </div>
+                        ` : `
+                            <div class="space-y-3">
+                                ${state.matches.map((m, i) => {
+                                    const dt = formatDateTime(m.fixture.date);
+                                    return `
+                                        <div onclick="state.selectedMatch=state.matches[${i}];render()" class="glass match-card p-4 slide-up" style="animation-delay:${i * 50}ms">
+                                            <div class="flex items-center justify-between mb-3">
+                                                <span class="stat-badge text-xs">${m.league?.name || ''}</span>
+                                                <span class="text-xs text-gray-500">${dt.date} • ${dt.time}</span>
+                                            </div>
+                                            <div class="flex items-center justify-between">
+                                                <div class="flex items-center gap-3 flex-1">
+                                                    ${m.teams.home.logo ? `<img src="${m.teams.home.logo}" class="w-10 h-10"/>` : ''}
+                                                    <span class="font-bold">${m.teams.home.name}</span>
+                                                </div>
+                                                <div class="w-10 h-10 rounded-full bg-gradient-to-br from-green-400/20 to-cyan-500/20 flex items-center justify-center mx-2">
+                                                    <span class="text-xs font-bold text-gray-400">VS</span>
+                                                </div>
+                                                <div class="flex items-center gap-3 flex-1 justify-end">
+                                                    <span class="font-bold">${m.teams.away.name}</span>
+                                                    ${m.teams.away.logo ? `<img src="${m.teams.away.logo}" class="w-10 h-10"/>` : ''}
+                                                </div>
+                                            </div>
+                                            <div class="text-center mt-3">
+                                                <span class="text-xs text-cyan-400">Clicca per analisi →</span>
+                                            </div>
+                                        </div>
+                                    `;
+                                }).join('')}
+                            </div>
+                        `}
+                    `;
+                }
+            }
+
+            // ========== TAB STORICO ==========
+            if (state.activeTab === 'history') {
+                const stats = getStats();
+                content = `
+                    <!-- Stats Overview -->
+                    <div class="glass-strong p-6 mb-6 glow-green">
+                        <h3 class="font-bold text-lg mb-4">📊 Le Tue Statistiche</h3>
+                        <div class="grid grid-cols-4 gap-3">
+                            <div class="text-center">
+                                <p class="text-3xl font-black">${stats.total}</p>
+                                <p class="text-xs text-gray-400">Totali</p>
+                            </div>
+                            <div class="text-center">
+                                <p class="text-3xl font-black text-green-400">${stats.won}</p>
+                                <p class="text-xs text-gray-400">Vinti</p>
+                            </div>
+                            <div class="text-center">
+                                <p class="text-3xl font-black text-red-400">${stats.lost}</p>
+                                <p class="text-xs text-gray-400">Persi</p>
+                            </div>
+                            <div class="text-center">
+                                <p class="text-3xl font-black gradient-text">${stats.hitRate}%</p>
+                                <p class="text-xs text-gray-400">Hit Rate</p>
+                            </div>
+                        </div>
+                        ${stats.total > 0 ? `
+                            <div class="mt-4 bg-black/30 rounded-xl p-3">
+                                <div class="flex justify-between text-xs text-gray-400 mb-1">
+                                    <span>Progressi</span>
+                                    <span>${stats.won}/${stats.won + stats.lost}</span>
+                                </div>
+                                <div class="w-full h-3 bg-gray-800 rounded-full overflow-hidden">
+                                    <div class="h-full bg-gradient-to-r from-green-400 to-cyan-500 rounded-full transition-all" style="width: ${stats.hitRate}%"></div>
+                                </div>
+                            </div>
+                        ` : ''}
+                    </div>
+
+                    <!-- History List -->
+                    <h3 class="font-bold text-lg mb-4">📝 I Tuoi Pronostici</h3>
+                    <div class="space-y-3">
+                        ${state.history.length === 0 ? `
+                            <div class="glass p-8 text-center">
+                                <p class="text-gray-400">Nessun pronostico salvato</p>
+                                <p class="text-sm text-gray-500 mt-2">Vai su Partite per iniziare!</p>
+                            </div>
+                        ` : state.history.sort((a, b) => b.id - a.id).map(e => {
+                            const typeIcon = e.pickType?.includes('Corner') ? '🚩' : e.pickType?.includes('Card') ? '🟨' : '⚽';
+                            const bgClass = e.result === 'won' ? 'result-won' : e.result === 'lost' ? 'result-lost' : '';
+                            return `
+                                <div class="glass p-4 border ${bgClass} slide-up">
+                                    <div class="flex items-start justify-between">
+                                        <div class="flex-1">
+                                            <div class="flex items-center gap-2 mb-1">
+                                                <span class="text-lg">${typeIcon}</span>
+                                                <span class="font-bold text-sm">${e.matchInfo || e.description || 'Partita'}</span>
+                                            </div>
+                                            <p class="text-cyan-400 font-semibold">${e.pickType || ''}: ${e.pickValue || ''}</p>
+                                            <div class="flex items-center gap-2 mt-2">
+                                                <span class="conf-badge ${confBadgeClass(e.conf)}">${e.conf}%</span>
+                                                <span class="text-xs text-gray-500">${new Date(e.date).toLocaleDateString('it-IT')}</span>
+                                            </div>
+                                        </div>
+                                        <div class="ml-4">
+                                            ${e.result === null ? `
+                                                <div class="flex flex-col gap-2">
+                                                    <button onclick="updateResult(${e.id},'won')" class="px-4 py-2 rounded-lg bg-green-500/20 text-green-400 font-bold text-sm hover:bg-green-500/30 transition">✓ WIN</button>
+                                                    <button onclick="updateResult(${e.id},'lost')" class="px-4 py-2 rounded-lg bg-red-500/20 text-red-400 font-bold text-sm hover:bg-red-500/30 transition">✗ LOST</button>
+                                                </div>
+                                            ` : `
+                                                <div class="w-14 h-14 rounded-xl flex items-center justify-center ${e.result === 'won' ? 'bg-green-500/20' : 'bg-red-500/20'}">
+                                                    <span class="text-3xl">${e.result === 'won' ? '✅' : '❌'}</span>
+                                                </div>
+                                            `}
+                                        </div>
+                                    </div>
+                                </div>
+                            `;
+                        }).join('')}
+                    </div>
+                    
+                    <button onclick="signOut()" class="w-full mt-8 py-4 glass rounded-2xl text-red-400 font-bold">🚪 Logout</button>
+                `;
+            }
+
+            // ========== MAIN LAYOUT ==========
+            root.innerHTML = `
+                <div class="max-w-lg mx-auto min-h-screen flex flex-col pb-24">
+                    <!-- Header -->
+                    <header class="sticky top-0 z-50 glass border-b border-white/5">
+                        <div class="px-4 py-4 flex items-center justify-between">
+                            <div class="flex items-center gap-3">
+                                <div class="w-11 h-11 rounded-2xl bg-gradient-to-br from-green-400 to-cyan-500 flex items-center justify-center shadow-lg">
+                                    <span class="text-xl">⚽</span>
+                                </div>
+                                <div>
+                                    <h1 class="font-black text-lg gradient-text">BOMBA BET</h1>
+                                    <p class="text-xs text-gray-500">${state.user?.displayName?.split(' ')[0] || 'User'}</p>
+                                </div>
+                            </div>
+                            <div class="flex items-center gap-2">
+                                <div class="pulse-dot w-2 h-2 rounded-full ${state.syncStatus === 'synced' ? 'bg-green-400' : 'bg-yellow-400'}"></div>
+                                <span class="text-xs text-gray-500">${state.syncStatus === 'synced' ? 'Sync' : 'Local'}</span>
+                            </div>
+                        </div>
+                    </header>
+                    
+                    <!-- Content -->
+                    <main class="flex-1 p-4">${content}</main>
+                    
+                    <!-- Bottom Navigation -->
+                    <nav class="fixed bottom-0 left-0 right-0 glass border-t border-white/5 z-50">
+                        <div class="max-w-lg mx-auto flex">
+                            <button onclick="state.activeTab='matches';state.selectedMatch=null;render()" class="flex-1 py-4 flex flex-col items-center gap-1 ${state.activeTab === 'matches' ? 'text-cyan-400' : 'text-gray-500'}">
+                                <span class="text-xl">📅</span>
+                                <span class="text-xs font-semibold">Partite</span>
+                            </button>
+                            <button onclick="state.activeTab='history';render()" class="flex-1 py-4 flex flex-col items-center gap-1 ${state.activeTab === 'history' ? 'text-cyan-400' : 'text-gray-500'}">
+                                <span class="text-xl">📊</span>
+                                <span class="text-xs font-semibold">Storico</span>
+                            </button>
+                        </div>
+                    </nav>
+                </div>
+            `;
+        }
+
+        // INIT
+        setupAuthListener();
+    </script>
+</body>
+</html>
