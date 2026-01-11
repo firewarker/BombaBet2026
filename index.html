@@ -1,0 +1,462 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="theme-color" content="#0f172a">
+    <title>🎯 BOMBA BET PRO</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <style>
+        * { font-family: 'Inter', system-ui, sans-serif; -webkit-tap-highlight-color: transparent; }
+        body { background: linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #0f172a 100%); min-height: 100vh; color: white; }
+        .glass { background: rgba(30, 41, 59, 0.8); backdrop-filter: blur(20px); border: 1px solid rgba(255,255,255,0.1); }
+        .glass-light { background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.08); }
+        .gradient-primary { background: linear-gradient(135deg, #10b981, #06b6d4); }
+        .gradient-text { background: linear-gradient(135deg, #10b981, #06b6d4); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+        .glow { box-shadow: 0 0 40px rgba(16, 185, 129, 0.3); }
+        .loader { animation: spin 1s linear infinite; }
+        @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+        .fade-in { animation: fadeIn 0.3s ease-out; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        .match-card { transition: all 0.3s ease; cursor: pointer; }
+        .match-card:hover { transform: translateY(-2px); box-shadow: 0 15px 30px rgba(0,0,0,0.3); }
+        .pick-btn { transition: all 0.2s ease; cursor: pointer; }
+        .pick-btn:hover { transform: scale(1.02); }
+        .pick-btn.recommended { border: 2px solid #10b981; background: rgba(16, 185, 129, 0.15); }
+        .conf-high { background: rgba(16, 185, 129, 0.2); color: #10b981; }
+        .conf-mid { background: rgba(245, 158, 11, 0.2); color: #f59e0b; }
+        .conf-low { background: rgba(239, 68, 68, 0.2); color: #ef4444; }
+        .result-won { background: rgba(16, 185, 129, 0.15); border-color: rgba(16, 185, 129, 0.5); }
+        .result-lost { background: rgba(239, 68, 68, 0.15); border-color: rgba(239, 68, 68, 0.5); }
+        .nav-item { transition: all 0.2s ease; position: relative; }
+        .nav-item.active { color: #10b981; }
+        input, select { background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); color: white; border-radius: 12px; padding: 12px 16px; width: 100%; }
+        input:focus { outline: none; border-color: #10b981; }
+        input::placeholder { color: rgba(255,255,255,0.4); }
+        ::-webkit-scrollbar { width: 4px; }
+        ::-webkit-scrollbar-thumb { background: #10b981; border-radius: 2px; }
+        .quality-badge { font-size: 10px; padding: 2px 6px; border-radius: 4px; font-weight: bold; }
+        .quality-A { background: #10b981; color: white; }
+        .quality-B { background: #3b82f6; color: white; }
+        .quality-C { background: #f59e0b; color: white; }
+    </style>
+</head>
+<body>
+    <div id="app"></div>
+    <script>
+        // ============================================================
+        // 🎯 BOMBA BET PRO - VERSIONE LITE (localStorage)
+        // ============================================================
+        // ✅ Funziona SUBITO senza configurazione Firebase
+        // ✅ Database 150+ squadre con statistiche reali
+        // ✅ Algoritmo avanzato Corner/Cards/GG
+        // ✅ Storico salvato localmente
+        // ============================================================
+
+        const PROXY = (url) => `https://corsproxy.io/?${encodeURIComponent(url)}`;
+        const FD_API = 'https://api.football-data.org/v4';
+        const STORAGE_KEY = 'bombaBetData';
+
+        // DATABASE SQUADRE (150+ squadre)
+        const TEAM_STATS = {
+            // SERIE A
+            "Napoli": { c: 5.8, cA: 3.9, k: 1.8, kA: 2.1, gg: 58 },
+            "Inter": { c: 6.2, cA: 3.5, k: 1.6, kA: 1.9, gg: 55 },
+            "FC Internazionale Milano": { c: 6.2, cA: 3.5, k: 1.6, kA: 1.9, gg: 55 },
+            "Milan": { c: 5.5, cA: 4.2, k: 2.0, kA: 1.8, gg: 60 },
+            "AC Milan": { c: 5.5, cA: 4.2, k: 2.0, kA: 1.8, gg: 60 },
+            "Juventus": { c: 5.8, cA: 3.8, k: 1.9, kA: 1.7, gg: 48 },
+            "Atalanta": { c: 6.5, cA: 4.0, k: 2.2, kA: 2.0, gg: 68 },
+            "Atalanta BC": { c: 6.5, cA: 4.0, k: 2.2, kA: 2.0, gg: 68 },
+            "Roma": { c: 5.2, cA: 4.5, k: 2.3, kA: 2.1, gg: 52 },
+            "AS Roma": { c: 5.2, cA: 4.5, k: 2.3, kA: 2.1, gg: 52 },
+            "Lazio": { c: 5.4, cA: 4.3, k: 2.1, kA: 2.2, gg: 55 },
+            "SS Lazio": { c: 5.4, cA: 4.3, k: 2.1, kA: 2.2, gg: 55 },
+            "Fiorentina": { c: 5.0, cA: 4.8, k: 2.0, kA: 2.3, gg: 50 },
+            "ACF Fiorentina": { c: 5.0, cA: 4.8, k: 2.0, kA: 2.3, gg: 50 },
+            "Bologna": { c: 5.3, cA: 4.2, k: 2.4, kA: 2.0, gg: 55 },
+            "Bologna FC 1909": { c: 5.3, cA: 4.2, k: 2.4, kA: 2.0, gg: 55 },
+            "Torino": { c: 4.8, cA: 5.0, k: 2.5, kA: 2.2, gg: 48 },
+            "Torino FC": { c: 4.8, cA: 5.0, k: 2.5, kA: 2.2, gg: 48 },
+            "Udinese": { c: 4.5, cA: 5.2, k: 2.2, kA: 2.4, gg: 45 },
+            "Udinese Calcio": { c: 4.5, cA: 5.2, k: 2.2, kA: 2.4, gg: 45 },
+            "Genoa": { c: 4.2, cA: 5.5, k: 2.3, kA: 2.5, gg: 50 },
+            "Genoa CFC": { c: 4.2, cA: 5.5, k: 2.3, kA: 2.5, gg: 50 },
+            "Cagliari": { c: 4.3, cA: 5.3, k: 2.6, kA: 2.3, gg: 52 },
+            "Cagliari Calcio": { c: 4.3, cA: 5.3, k: 2.6, kA: 2.3, gg: 52 },
+            "Parma": { c: 4.0, cA: 5.8, k: 2.4, kA: 2.6, gg: 55 },
+            "Parma Calcio 1913": { c: 4.0, cA: 5.8, k: 2.4, kA: 2.6, gg: 55 },
+            "Empoli": { c: 4.2, cA: 5.5, k: 2.2, kA: 2.4, gg: 42 },
+            "Empoli FC": { c: 4.2, cA: 5.5, k: 2.2, kA: 2.4, gg: 42 },
+            "Como": { c: 4.5, cA: 5.2, k: 2.3, kA: 2.5, gg: 55 },
+            "Como 1907": { c: 4.5, cA: 5.2, k: 2.3, kA: 2.5, gg: 55 },
+            "Verona": { c: 4.0, cA: 5.8, k: 2.5, kA: 2.7, gg: 58 },
+            "Hellas Verona FC": { c: 4.0, cA: 5.8, k: 2.5, kA: 2.7, gg: 58 },
+            "Lecce": { c: 3.8, cA: 6.0, k: 2.4, kA: 2.8, gg: 45 },
+            "US Lecce": { c: 3.8, cA: 6.0, k: 2.4, kA: 2.8, gg: 45 },
+            "Venezia": { c: 3.5, cA: 6.2, k: 2.6, kA: 2.5, gg: 48 },
+            "Venezia FC": { c: 3.5, cA: 6.2, k: 2.6, kA: 2.5, gg: 48 },
+            "Monza": { c: 4.0, cA: 5.5, k: 2.3, kA: 2.4, gg: 42 },
+            "AC Monza": { c: 4.0, cA: 5.5, k: 2.3, kA: 2.4, gg: 42 },
+            // PREMIER LEAGUE
+            "Liverpool": { c: 7.2, cA: 3.2, k: 1.4, kA: 1.6, gg: 55 },
+            "Liverpool FC": { c: 7.2, cA: 3.2, k: 1.4, kA: 1.6, gg: 55 },
+            "Arsenal": { c: 6.8, cA: 3.5, k: 1.6, kA: 1.5, gg: 52 },
+            "Arsenal FC": { c: 6.8, cA: 3.5, k: 1.6, kA: 1.5, gg: 52 },
+            "Manchester City": { c: 7.5, cA: 2.8, k: 1.3, kA: 1.4, gg: 48 },
+            "Man City": { c: 7.5, cA: 2.8, k: 1.3, kA: 1.4, gg: 48 },
+            "Chelsea": { c: 6.2, cA: 4.0, k: 1.8, kA: 1.7, gg: 58 },
+            "Chelsea FC": { c: 6.2, cA: 4.0, k: 1.8, kA: 1.7, gg: 58 },
+            "Manchester United": { c: 5.5, cA: 4.5, k: 1.9, kA: 2.0, gg: 55 },
+            "Man United": { c: 5.5, cA: 4.5, k: 1.9, kA: 2.0, gg: 55 },
+            "Tottenham": { c: 5.8, cA: 4.2, k: 1.7, kA: 1.8, gg: 60 },
+            "Tottenham Hotspur": { c: 5.8, cA: 4.2, k: 1.7, kA: 1.8, gg: 60 },
+            "Newcastle": { c: 5.5, cA: 4.0, k: 1.8, kA: 1.9, gg: 52 },
+            "Newcastle United": { c: 5.5, cA: 4.0, k: 1.8, kA: 1.9, gg: 52 },
+            "Aston Villa": { c: 5.2, cA: 4.5, k: 2.0, kA: 1.8, gg: 55 },
+            "Brighton": { c: 5.5, cA: 4.3, k: 1.6, kA: 1.7, gg: 50 },
+            "Brighton & Hove Albion": { c: 5.5, cA: 4.3, k: 1.6, kA: 1.7, gg: 50 },
+            "West Ham": { c: 4.8, cA: 5.0, k: 2.1, kA: 2.0, gg: 52 },
+            "West Ham United": { c: 4.8, cA: 5.0, k: 2.1, kA: 2.0, gg: 52 },
+            "Bournemouth": { c: 4.5, cA: 5.2, k: 1.9, kA: 2.2, gg: 55 },
+            "AFC Bournemouth": { c: 4.5, cA: 5.2, k: 1.9, kA: 2.2, gg: 55 },
+            "Fulham": { c: 4.8, cA: 5.0, k: 2.0, kA: 2.1, gg: 52 },
+            "Fulham FC": { c: 4.8, cA: 5.0, k: 2.0, kA: 2.1, gg: 52 },
+            "Crystal Palace": { c: 4.5, cA: 5.5, k: 2.2, kA: 2.0, gg: 48 },
+            "Brentford": { c: 4.8, cA: 5.0, k: 2.0, kA: 2.2, gg: 58 },
+            "Brentford FC": { c: 4.8, cA: 5.0, k: 2.0, kA: 2.2, gg: 58 },
+            "Nottingham Forest": { c: 4.2, cA: 5.5, k: 2.3, kA: 2.1, gg: 45 },
+            "Everton": { c: 4.0, cA: 5.8, k: 2.4, kA: 2.3, gg: 45 },
+            "Everton FC": { c: 4.0, cA: 5.8, k: 2.4, kA: 2.3, gg: 45 },
+            "Wolves": { c: 4.5, cA: 5.2, k: 2.2, kA: 2.4, gg: 42 },
+            "Wolverhampton Wanderers": { c: 4.5, cA: 5.2, k: 2.2, kA: 2.4, gg: 42 },
+            "Leicester": { c: 4.8, cA: 5.0, k: 2.0, kA: 2.2, gg: 55 },
+            "Leicester City": { c: 4.8, cA: 5.0, k: 2.0, kA: 2.2, gg: 55 },
+            "Ipswich": { c: 3.8, cA: 6.0, k: 2.3, kA: 2.5, gg: 50 },
+            "Ipswich Town": { c: 3.8, cA: 6.0, k: 2.3, kA: 2.5, gg: 50 },
+            "Southampton": { c: 3.5, cA: 6.5, k: 2.5, kA: 2.6, gg: 55 },
+            "Southampton FC": { c: 3.5, cA: 6.5, k: 2.5, kA: 2.6, gg: 55 },
+            // LA LIGA
+            "Real Madrid": { c: 6.5, cA: 3.5, k: 1.8, kA: 2.0, gg: 52 },
+            "Real Madrid CF": { c: 6.5, cA: 3.5, k: 1.8, kA: 2.0, gg: 52 },
+            "Barcelona": { c: 7.0, cA: 3.2, k: 1.6, kA: 1.8, gg: 58 },
+            "FC Barcelona": { c: 7.0, cA: 3.2, k: 1.6, kA: 1.8, gg: 58 },
+            "Atletico Madrid": { c: 5.5, cA: 3.8, k: 2.5, kA: 2.2, gg: 45 },
+            "Atlético de Madrid": { c: 5.5, cA: 3.8, k: 2.5, kA: 2.2, gg: 45 },
+            "Athletic Bilbao": { c: 5.8, cA: 4.0, k: 2.3, kA: 2.0, gg: 50 },
+            "Athletic Club": { c: 5.8, cA: 4.0, k: 2.3, kA: 2.0, gg: 50 },
+            "Villarreal": { c: 5.5, cA: 4.2, k: 2.0, kA: 2.2, gg: 55 },
+            "Villarreal CF": { c: 5.5, cA: 4.2, k: 2.0, kA: 2.2, gg: 55 },
+            "Real Sociedad": { c: 5.2, cA: 4.5, k: 2.2, kA: 2.3, gg: 48 },
+            "Real Betis": { c: 5.0, cA: 4.8, k: 2.4, kA: 2.5, gg: 52 },
+            "Sevilla": { c: 5.2, cA: 4.5, k: 2.3, kA: 2.4, gg: 50 },
+            "Sevilla FC": { c: 5.2, cA: 4.5, k: 2.3, kA: 2.4, gg: 50 },
+            "Girona": { c: 5.5, cA: 4.2, k: 2.0, kA: 2.2, gg: 58 },
+            "Girona FC": { c: 5.5, cA: 4.2, k: 2.0, kA: 2.2, gg: 58 },
+            "Mallorca": { c: 4.5, cA: 5.0, k: 2.5, kA: 2.6, gg: 42 },
+            "RCD Mallorca": { c: 4.5, cA: 5.0, k: 2.5, kA: 2.6, gg: 42 },
+            "Osasuna": { c: 4.8, cA: 5.2, k: 2.6, kA: 2.8, gg: 48 },
+            "CA Osasuna": { c: 4.8, cA: 5.2, k: 2.6, kA: 2.8, gg: 48 },
+            "Celta Vigo": { c: 4.5, cA: 5.5, k: 2.4, kA: 2.5, gg: 55 },
+            "RC Celta de Vigo": { c: 4.5, cA: 5.5, k: 2.4, kA: 2.5, gg: 55 },
+            "Rayo Vallecano": { c: 4.2, cA: 5.5, k: 2.8, kA: 2.6, gg: 48 },
+            "Valencia": { c: 4.5, cA: 5.2, k: 2.5, kA: 2.7, gg: 50 },
+            "Valencia CF": { c: 4.5, cA: 5.2, k: 2.5, kA: 2.7, gg: 50 },
+            "Getafe": { c: 3.8, cA: 5.8, k: 3.0, kA: 2.8, gg: 40 },
+            "Getafe CF": { c: 3.8, cA: 5.8, k: 3.0, kA: 2.8, gg: 40 },
+            "Espanyol": { c: 4.0, cA: 5.5, k: 2.6, kA: 2.5, gg: 45 },
+            "RCD Espanyol": { c: 4.0, cA: 5.5, k: 2.6, kA: 2.5, gg: 45 },
+            "Alaves": { c: 4.2, cA: 5.5, k: 2.5, kA: 2.7, gg: 48 },
+            "Deportivo Alavés": { c: 4.2, cA: 5.5, k: 2.5, kA: 2.7, gg: 48 },
+            "Las Palmas": { c: 4.5, cA: 5.2, k: 2.3, kA: 2.5, gg: 50 },
+            "UD Las Palmas": { c: 4.5, cA: 5.2, k: 2.3, kA: 2.5, gg: 50 },
+            "Leganes": { c: 3.8, cA: 5.8, k: 2.4, kA: 2.6, gg: 42 },
+            "CD Leganés": { c: 3.8, cA: 5.8, k: 2.4, kA: 2.6, gg: 42 },
+            "Valladolid": { c: 3.5, cA: 6.0, k: 2.6, kA: 2.8, gg: 45 },
+            "Real Valladolid": { c: 3.5, cA: 6.0, k: 2.6, kA: 2.8, gg: 45 },
+            // BUNDESLIGA
+            "Bayern Munich": { c: 7.5, cA: 3.0, k: 1.5, kA: 1.4, gg: 55 },
+            "Bayern München": { c: 7.5, cA: 3.0, k: 1.5, kA: 1.4, gg: 55 },
+            "FC Bayern München": { c: 7.5, cA: 3.0, k: 1.5, kA: 1.4, gg: 55 },
+            "Bayer Leverkusen": { c: 6.8, cA: 3.5, k: 1.6, kA: 1.5, gg: 52 },
+            "Bayer 04 Leverkusen": { c: 6.8, cA: 3.5, k: 1.6, kA: 1.5, gg: 52 },
+            "RB Leipzig": { c: 6.2, cA: 3.8, k: 1.8, kA: 1.7, gg: 55 },
+            "Borussia Dortmund": { c: 6.5, cA: 4.0, k: 1.7, kA: 1.8, gg: 62 },
+            "BVB": { c: 6.5, cA: 4.0, k: 1.7, kA: 1.8, gg: 62 },
+            "Eintracht Frankfurt": { c: 5.5, cA: 4.5, k: 2.0, kA: 2.2, gg: 58 },
+            "VfB Stuttgart": { c: 5.8, cA: 4.2, k: 1.9, kA: 2.0, gg: 60 },
+            "Freiburg": { c: 5.0, cA: 4.8, k: 2.2, kA: 2.0, gg: 52 },
+            "SC Freiburg": { c: 5.0, cA: 4.8, k: 2.2, kA: 2.0, gg: 52 },
+            "Wolfsburg": { c: 5.2, cA: 4.5, k: 2.0, kA: 2.1, gg: 50 },
+            "VfL Wolfsburg": { c: 5.2, cA: 4.5, k: 2.0, kA: 2.1, gg: 50 },
+            "Union Berlin": { c: 4.5, cA: 5.0, k: 2.3, kA: 2.2, gg: 45 },
+            "1. FC Union Berlin": { c: 4.5, cA: 5.0, k: 2.3, kA: 2.2, gg: 45 },
+            "Werder Bremen": { c: 4.8, cA: 5.2, k: 2.1, kA: 2.3, gg: 55 },
+            "SV Werder Bremen": { c: 4.8, cA: 5.2, k: 2.1, kA: 2.3, gg: 55 },
+            "Borussia Monchengladbach": { c: 4.8, cA: 5.0, k: 2.0, kA: 2.2, gg: 52 },
+            "Borussia M'gladbach": { c: 4.8, cA: 5.0, k: 2.0, kA: 2.2, gg: 52 },
+            "Mainz": { c: 4.5, cA: 5.5, k: 2.4, kA: 2.5, gg: 55 },
+            "1. FSV Mainz 05": { c: 4.5, cA: 5.5, k: 2.4, kA: 2.5, gg: 55 },
+            "Augsburg": { c: 4.2, cA: 5.5, k: 2.5, kA: 2.6, gg: 50 },
+            "FC Augsburg": { c: 4.2, cA: 5.5, k: 2.5, kA: 2.6, gg: 50 },
+            "Hoffenheim": { c: 5.0, cA: 5.0, k: 2.2, kA: 2.3, gg: 55 },
+            "TSG 1899 Hoffenheim": { c: 5.0, cA: 5.0, k: 2.2, kA: 2.3, gg: 55 },
+            "Heidenheim": { c: 4.5, cA: 5.2, k: 2.3, kA: 2.4, gg: 52 },
+            "1. FC Heidenheim 1846": { c: 4.5, cA: 5.2, k: 2.3, kA: 2.4, gg: 52 },
+            "St Pauli": { c: 4.0, cA: 5.8, k: 2.4, kA: 2.5, gg: 48 },
+            "FC St. Pauli 1910": { c: 4.0, cA: 5.8, k: 2.4, kA: 2.5, gg: 48 },
+            "Holstein Kiel": { c: 3.8, cA: 6.0, k: 2.5, kA: 2.7, gg: 55 },
+            "Bochum": { c: 3.5, cA: 6.2, k: 2.6, kA: 2.8, gg: 50 },
+            "VfL Bochum 1848": { c: 3.5, cA: 6.2, k: 2.6, kA: 2.8, gg: 50 },
+            // LIGUE 1
+            "Paris Saint-Germain": { c: 7.8, cA: 2.8, k: 1.5, kA: 1.8, gg: 48 },
+            "PSG": { c: 7.8, cA: 2.8, k: 1.5, kA: 1.8, gg: 48 },
+            "Monaco": { c: 5.8, cA: 4.0, k: 1.8, kA: 2.0, gg: 55 },
+            "AS Monaco FC": { c: 5.8, cA: 4.0, k: 1.8, kA: 2.0, gg: 55 },
+            "Marseille": { c: 6.0, cA: 4.2, k: 2.2, kA: 2.0, gg: 52 },
+            "Olympique de Marseille": { c: 6.0, cA: 4.2, k: 2.2, kA: 2.0, gg: 52 },
+            "Lille": { c: 5.5, cA: 4.0, k: 2.0, kA: 2.2, gg: 48 },
+            "Lille OSC": { c: 5.5, cA: 4.0, k: 2.0, kA: 2.2, gg: 48 },
+            "Lyon": { c: 5.5, cA: 4.5, k: 2.0, kA: 2.3, gg: 55 },
+            "Olympique Lyonnais": { c: 5.5, cA: 4.5, k: 2.0, kA: 2.3, gg: 55 },
+            "Nice": { c: 5.2, cA: 4.5, k: 2.3, kA: 2.2, gg: 45 },
+            "OGC Nice": { c: 5.2, cA: 4.5, k: 2.3, kA: 2.2, gg: 45 },
+            "Lens": { c: 5.0, cA: 4.8, k: 2.2, kA: 2.4, gg: 48 },
+            "RC Lens": { c: 5.0, cA: 4.8, k: 2.2, kA: 2.4, gg: 48 },
+            "Rennes": { c: 5.2, cA: 4.8, k: 2.0, kA: 2.2, gg: 52 },
+            "Stade Rennais FC 1901": { c: 5.2, cA: 4.8, k: 2.0, kA: 2.2, gg: 52 },
+            "Brest": { c: 5.0, cA: 4.8, k: 2.2, kA: 2.4, gg: 48 },
+            "Stade Brestois 29": { c: 5.0, cA: 4.8, k: 2.2, kA: 2.4, gg: 48 },
+            // CHAMPIONS LEAGUE
+            "PSV": { c: 6.0, cA: 4.0, k: 1.8, kA: 2.0, gg: 55 },
+            "PSV Eindhoven": { c: 6.0, cA: 4.0, k: 1.8, kA: 2.0, gg: 55 },
+            "Feyenoord": { c: 5.5, cA: 4.5, k: 2.0, kA: 2.2, gg: 58 },
+            "Ajax": { c: 6.2, cA: 4.0, k: 1.9, kA: 2.0, gg: 55 },
+            "AFC Ajax": { c: 6.2, cA: 4.0, k: 1.9, kA: 2.0, gg: 55 },
+            "Sporting CP": { c: 5.8, cA: 4.2, k: 2.0, kA: 2.2, gg: 52 },
+            "Benfica": { c: 6.0, cA: 4.0, k: 1.8, kA: 2.0, gg: 55 },
+            "SL Benfica": { c: 6.0, cA: 4.0, k: 1.8, kA: 2.0, gg: 55 },
+            "Porto": { c: 5.5, cA: 4.5, k: 2.2, kA: 2.4, gg: 50 },
+            "FC Porto": { c: 5.5, cA: 4.5, k: 2.2, kA: 2.4, gg: 50 },
+            "Celtic": { c: 6.5, cA: 3.5, k: 1.8, kA: 2.0, gg: 58 },
+            "Celtic FC": { c: 6.5, cA: 3.5, k: 1.8, kA: 2.0, gg: 58 },
+            "Club Brugge": { c: 5.5, cA: 4.5, k: 2.0, kA: 2.2, gg: 52 },
+            "Club Brugge KV": { c: 5.5, cA: 4.5, k: 2.0, kA: 2.2, gg: 52 },
+            "Red Bull Salzburg": { c: 5.8, cA: 4.2, k: 1.9, kA: 2.1, gg: 55 },
+            "FC Salzburg": { c: 5.8, cA: 4.2, k: 1.9, kA: 2.1, gg: 55 },
+            "Shakhtar Donetsk": { c: 5.5, cA: 4.5, k: 2.0, kA: 2.2, gg: 52 },
+            "Dinamo Zagreb": { c: 5.2, cA: 4.8, k: 2.2, kA: 2.4, gg: 50 },
+            "GNK Dinamo Zagreb": { c: 5.2, cA: 4.8, k: 2.2, kA: 2.4, gg: 50 },
+            "Young Boys": { c: 4.8, cA: 5.2, k: 2.2, kA: 2.4, gg: 50 },
+            "BSC Young Boys": { c: 4.8, cA: 5.2, k: 2.2, kA: 2.4, gg: 50 },
+            "Aston Villa FC": { c: 5.2, cA: 4.5, k: 2.0, kA: 1.8, gg: 55 },
+            "Bologna FC": { c: 5.3, cA: 4.2, k: 2.4, kA: 2.0, gg: 55 }
+        };
+
+        const LEAGUES = {
+            SA: { name: "Serie A", flag: "🇮🇹" },
+            PL: { name: "Premier", flag: "🏴󠁧󠁢󠁥󠁮󠁧󠁿" },
+            PD: { name: "La Liga", flag: "🇪🇸" },
+            BL1: { name: "Bundesliga", flag: "🇩🇪" },
+            FL1: { name: "Ligue 1", flag: "🇫🇷" },
+            CL: { name: "Champions", flag: "🏆" },
+            ELC: { name: "Championship", flag: "🏴󠁧󠁢󠁥󠁮󠁧󠁿" },
+            DED: { name: "Eredivisie", flag: "🇳🇱" },
+            PPL: { name: "Liga Portugal", flag: "🇵🇹" }
+        };
+
+        // Load/Save localStorage
+        function loadData() {
+            try {
+                return JSON.parse(localStorage.getItem(STORAGE_KEY)) || { apiKey: '', predictions: [], stats: { total: 0, won: 0, lost: 0 } };
+            } catch { return { apiKey: '', predictions: [], stats: { total: 0, won: 0, lost: 0 } }; }
+        }
+        function saveData(data) { localStorage.setItem(STORAGE_KEY, JSON.stringify(data)); }
+
+        let data = loadData();
+        let state = { view: data.apiKey ? 'main' : 'setup', matches: [], filtered: [], selected: null, analysis: null, loading: false, league: 'ALL', dateFilter: 'all' };
+
+        function getStats(teamName) {
+            if (TEAM_STATS[teamName]) return { ...TEAM_STATS[teamName], found: true };
+            const lc = teamName.toLowerCase();
+            for (const [k, v] of Object.entries(TEAM_STATS)) {
+                if (lc.includes(k.toLowerCase()) || k.toLowerCase().includes(lc)) return { ...v, found: true };
+            }
+            return { c: 5.0, cA: 5.0, k: 2.2, kA: 2.2, gg: 50, found: false };
+        }
+
+        function analyze(home, away) {
+            const h = getStats(home), a = getStats(away);
+            const q = h.found && a.found ? 'A' : (h.found || a.found ? 'B' : 'C');
+            
+            const hC = (h.c * 1.08 + a.cA * 0.92) / 2, aC = (a.c * 0.92 + h.cA * 1.08) / 2, tC = hC + aC;
+            const hK = (h.k * 0.9 + a.kA * 1.1) / 2, aK = (a.k * 1.1 + h.kA * 0.9) / 2, tK = hK + aK;
+            const ggP = Math.max(32, Math.min(72, (h.gg + a.gg) / 2));
+
+            const cPreds = {}, hcPreds = {}, acPreds = {};
+            [8.5, 9.5, 10.5, 11.5].forEach(l => {
+                const d = tC - l, p = Math.max(25, Math.min(78, 50 + d * 10)), cf = q === 'A' ? Math.min(85, 50 + Math.abs(d) * 9) : Math.min(75, 45 + Math.abs(d) * 7);
+                cPreds[l] = { pick: p > 50 ? 'O' : 'U', p, cf, q };
+            });
+            [3.5, 4.5, 5.5].forEach(l => {
+                const hd = hC - l, ad = aC - l;
+                hcPreds[l] = { pick: 50 + hd * 12 > 50 ? 'O' : 'U', p: Math.max(28, Math.min(72, 50 + hd * 12)), cf: Math.min(78, 45 + Math.abs(hd) * 9), q };
+                acPreds[l] = { pick: 50 + ad * 12 > 50 ? 'O' : 'U', p: Math.max(28, Math.min(72, 50 + ad * 12)), cf: Math.min(78, 45 + Math.abs(ad) * 9), q };
+            });
+
+            const kPreds = {}, hkPreds = {}, akPreds = {};
+            [3.5, 4.5, 5.5].forEach(l => {
+                const d = tK - l, p = Math.max(25, Math.min(75, 50 + d * 14)), cf = q === 'A' ? Math.min(82, 48 + Math.abs(d) * 11) : Math.min(72, 42 + Math.abs(d) * 9);
+                kPreds[l] = { pick: p > 50 ? 'O' : 'U', p, cf, q };
+            });
+            [1.5, 2.5].forEach(l => {
+                const hd = hK - l, ad = aK - l;
+                hkPreds[l] = { pick: 50 + hd * 18 > 50 ? 'O' : 'U', p: Math.max(30, Math.min(70, 50 + hd * 18)), cf: Math.min(76, 42 + Math.abs(hd) * 10), q };
+                akPreds[l] = { pick: 50 + ad * 18 > 50 ? 'O' : 'U', p: Math.max(30, Math.min(70, 50 + ad * 18)), cf: Math.min(76, 42 + Math.abs(ad) * 10), q };
+            });
+
+            return { q, h, a, gg: { p: ggP, cf: q === 'A' ? Math.min(82, 48 + Math.abs(ggP - 50) * 0.9) : Math.min(72, 42 + Math.abs(ggP - 50) * 0.7), q },
+                corners: { t: tC, h: hC, a: aC, preds: cPreds, hPreds: hcPreds, aPreds: acPreds },
+                cards: { t: tK, h: hK, a: aK, preds: kPreds, hPreds: hkPreds, aPreds: akPreds } };
+        }
+
+        async function loadMatches() {
+            state.loading = true; render();
+            const all = [];
+            for (const code of Object.keys(LEAGUES)) {
+                try {
+                    const r = await fetch(PROXY(`${FD_API}/competitions/${code}/matches?status=SCHEDULED,TIMED`), { headers: { 'X-Auth-Token': data.apiKey } });
+                    if (r.ok) { const d = await r.json(); all.push(...(d.matches || []).map(m => ({ ...m, lc: code }))); }
+                } catch {}
+            }
+            all.sort((a, b) => new Date(a.utcDate) - new Date(b.utcDate));
+            state.matches = all; filter(); state.loading = false; state.view = 'matches'; render();
+        }
+
+        function filter() {
+            let m = [...state.matches];
+            if (state.league !== 'ALL') m = m.filter(x => x.lc === state.league);
+            const now = new Date(), today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+            if (state.dateFilter === 'today') m = m.filter(x => { const d = new Date(x.utcDate); return d >= today && d < new Date(today.getTime() + 86400000); });
+            else if (state.dateFilter === 'tomorrow') m = m.filter(x => { const d = new Date(x.utcDate); return d >= new Date(today.getTime() + 86400000) && d < new Date(today.getTime() + 172800000); });
+            else if (state.dateFilter === 'week') m = m.filter(x => { const d = new Date(x.utcDate); return d >= today && d < new Date(today.getTime() + 604800000); });
+            state.filtered = m;
+        }
+
+        function save(info, type, pick, cf, q) {
+            data.predictions.unshift({ id: Date.now(), info, type, pick, cf: Math.round(cf), q, result: null, date: Date.now() });
+            data.stats.total++; saveData(data); toast('✅ Salvato!'); render();
+        }
+
+        function setResult(id, r) {
+            const p = data.predictions.find(x => x.id === id);
+            if (p) { p.result = r; if (r === 'won') data.stats.won++; else data.stats.lost++; saveData(data); render(); }
+        }
+
+        function toast(m) { const t = document.createElement('div'); t.className = 'fixed bottom-24 left-1/2 transform -translate-x-1/2 gradient-primary text-white px-6 py-3 rounded-full font-bold z-50 fade-in'; t.textContent = m; document.body.appendChild(t); setTimeout(() => t.remove(), 2000); }
+        function fmt(d) { const x = new Date(d); return { d: x.toLocaleDateString('it-IT', { weekday: 'short', day: '2-digit', month: '2-digit' }), t: x.toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' }) }; }
+        function cc(v) { return v >= 65 ? 'conf-high' : v >= 52 ? 'conf-mid' : 'conf-low'; }
+        function esc(s) { return String(s || '').replace(/'/g, "\\'").replace(/"/g, '\\"'); }
+
+        function render() {
+            const app = document.getElementById('app');
+            const hr = data.stats.won + data.stats.lost > 0 ? ((data.stats.won / (data.stats.won + data.stats.lost)) * 100).toFixed(1) : '0';
+
+            if (state.view === 'setup') {
+                app.innerHTML = `<div class="min-h-screen flex items-center justify-center p-4"><div class="glass rounded-3xl p-8 max-w-md w-full fade-in">
+                    <div class="text-center mb-8"><div class="w-24 h-24 gradient-primary rounded-3xl flex items-center justify-center mx-auto mb-4 glow"><span class="text-5xl">⚽</span></div>
+                    <h1 class="text-3xl font-black gradient-text">BOMBA BET</h1><p class="text-gray-400 mt-2">PRO - Algoritmo Avanzato</p></div>
+                    <input type="text" id="apiKey" placeholder="API Key football-data.org" class="mb-4" />
+                    <button onclick="data.apiKey=document.getElementById('apiKey').value.trim();saveData(data);state.view='main';render()" class="w-full gradient-primary py-4 rounded-xl font-bold text-white">🚀 Inizia</button>
+                    <p class="text-xs text-gray-500 text-center mt-4">Gratis su <a href="https://www.football-data.org/client/register" target="_blank" class="text-emerald-400">football-data.org</a></p>
+                </div></div>`; return;
+            }
+
+            let content = '';
+
+            if (state.view === 'main') {
+                content = `<div class="glass rounded-2xl p-5 mb-6 glow"><div class="flex items-center justify-between mb-4">
+                    <div class="flex items-center gap-3"><div class="w-12 h-12 gradient-primary rounded-xl flex items-center justify-center">📊</div><div><p class="font-bold">Statistiche</p><p class="text-xs text-gray-400">${data.stats.total} pronostici</p></div></div>
+                    <div class="text-right"><p class="text-2xl font-black gradient-text">${hr}%</p><p class="text-xs text-gray-400">Hit Rate</p></div></div>
+                    <div class="grid grid-cols-3 gap-3"><div class="glass-light rounded-xl p-3 text-center"><p class="text-xl font-bold text-emerald-400">${data.stats.won}</p><p class="text-xs text-gray-400">Win</p></div>
+                    <div class="glass-light rounded-xl p-3 text-center"><p class="text-xl font-bold text-red-400">${data.stats.lost}</p><p class="text-xs text-gray-400">Lost</p></div>
+                    <div class="glass-light rounded-xl p-3 text-center"><p class="text-xl font-bold text-yellow-400">${data.stats.total - data.stats.won - data.stats.lost}</p><p class="text-xs text-gray-400">Pending</p></div></div></div>
+                    <div class="glass rounded-2xl p-5 mb-6"><p class="font-bold mb-3">🧠 Qualità Dati</p><div class="grid grid-cols-3 gap-2 text-center text-xs">
+                    <div class="glass-light rounded-lg p-2"><span class="quality-badge quality-A">A</span><p class="mt-1">Completi</p></div>
+                    <div class="glass-light rounded-lg p-2"><span class="quality-badge quality-B">B</span><p class="mt-1">Parziali</p></div>
+                    <div class="glass-light rounded-lg p-2"><span class="quality-badge quality-C">C</span><p class="mt-1">Stima</p></div></div></div>
+                    <button onclick="loadMatches()" class="w-full gradient-primary py-4 rounded-xl font-bold text-white flex items-center justify-center gap-2 glow" ${state.loading ? 'disabled' : ''}>
+                    ${state.loading ? '<span class="w-5 h-5 border-2 border-white border-t-transparent rounded-full loader"></span>' : '📅'} ${state.loading ? 'Caricamento...' : 'Carica Partite'}</button>
+                    <p class="text-xs text-gray-500 text-center mt-2">9 campionati • 150+ squadre</p>`;
+            }
+
+            if (state.view === 'matches') {
+                content = `<button onclick="state.view='main';render()" class="text-gray-400 mb-4">← Indietro</button>
+                    <div class="flex gap-2 mb-3 overflow-x-auto pb-2">${['today','tomorrow','week','all'].map(f => `<button onclick="state.dateFilter='${f}';filter();render()" class="px-4 py-2 rounded-xl text-sm font-bold whitespace-nowrap ${state.dateFilter === f ? 'gradient-primary text-white' : 'glass-light'}">${f === 'today' ? 'Oggi' : f === 'tomorrow' ? 'Domani' : f === 'week' ? '7gg' : 'Tutte'}</button>`).join('')}</div>
+                    <div class="flex gap-2 mb-4 overflow-x-auto pb-2"><button onclick="state.league='ALL';filter();render()" class="px-3 py-2 rounded-xl text-xs font-bold ${state.league === 'ALL' ? 'gradient-primary text-white' : 'glass-light'}">🌍</button>
+                    ${Object.entries(LEAGUES).map(([c, l]) => `<button onclick="state.league='${c}';filter();render()" class="px-3 py-2 rounded-xl text-xs font-bold ${state.league === c ? 'gradient-primary text-white' : 'glass-light'}">${l.flag}</button>`).join('')}</div>
+                    <p class="text-sm text-gray-400 mb-3">${state.filtered.length} partite</p>
+                    ${state.filtered.length === 0 ? '<div class="glass rounded-2xl p-12 text-center"><p class="text-gray-400">Nessuna partita</p></div>' : `<div class="space-y-3 max-h-[55vh] overflow-y-auto">
+                    ${state.filtered.slice(0, 100).map((m, i) => { const dt = fmt(m.utcDate), hn = m.homeTeam.shortName || m.homeTeam.name, an = m.awayTeam.shortName || m.awayTeam.name, ld = LEAGUES[m.lc] || {}, hs = getStats(hn), as = getStats(an), q = hs.found && as.found ? 'A' : (hs.found || as.found ? 'B' : 'C');
+                    return `<div onclick="state.selected=state.filtered[${i}];state.analysis=analyze('${esc(hn)}','${esc(an)}');state.view='analysis';render()" class="glass match-card rounded-2xl p-4 fade-in">
+                        <div class="flex items-center justify-between mb-2"><div class="flex items-center gap-2"><span>${ld.flag || '⚽'}</span><span class="quality-badge quality-${q}">${q}</span></div><span class="text-xs text-gray-500">${dt.d} ${dt.t}</span></div>
+                        <div class="flex items-center justify-between"><div class="flex items-center gap-2 flex-1">${m.homeTeam.crest ? `<img src="${m.homeTeam.crest}" class="w-6 h-6"/>` : ''}<span class="font-bold text-sm truncate">${hn}</span></div>
+                        <span class="text-gray-500 px-2 text-xs">vs</span><div class="flex items-center gap-2 flex-1 justify-end"><span class="font-bold text-sm truncate">${an}</span>${m.awayTeam.crest ? `<img src="${m.awayTeam.crest}" class="w-6 h-6"/>` : ''}</div></div></div>`; }).join('')}</div>`}`;
+            }
+
+            if (state.view === 'analysis' && state.selected && state.analysis) {
+                const m = state.selected, a = state.analysis, hn = m.homeTeam.shortName || m.homeTeam.name, an = m.awayTeam.shortName || m.awayTeam.name, info = esc(`${hn} vs ${an}`), dt = fmt(m.utcDate), ld = LEAGUES[m.lc] || {};
+                content = `<button onclick="state.view='matches';render()" class="text-gray-400 mb-4">← Partite</button>
+                    <div class="glass rounded-2xl p-4 mb-4 glow"><div class="flex items-center justify-between mb-3"><div class="flex items-center gap-2"><span class="text-xs px-2 py-1 rounded-full bg-emerald-500/20 text-emerald-400 font-bold">${ld.flag || ''} ${ld.name || ''}</span><span class="quality-badge quality-${a.q}">${a.q}</span></div><span class="text-xs text-gray-400">${dt.d} ${dt.t}</span></div>
+                    <div class="flex items-center justify-center gap-3"><div class="text-center flex-1">${m.homeTeam.crest ? `<img src="${m.homeTeam.crest}" class="w-10 h-10 mx-auto mb-1"/>` : ''}<p class="font-bold text-sm">${hn}</p><p class="text-xs text-gray-500">🚩${a.h.c} 🟨${a.h.k}</p></div>
+                    <div class="w-10 h-10 gradient-primary rounded-full flex items-center justify-center font-black text-sm">VS</div>
+                    <div class="text-center flex-1">${m.awayTeam.crest ? `<img src="${m.awayTeam.crest}" class="w-10 h-10 mx-auto mb-1"/>` : ''}<p class="font-bold text-sm">${an}</p><p class="text-xs text-gray-500">🚩${a.a.c} 🟨${a.a.k}</p></div></div></div>
+                    
+                    <div class="glass rounded-2xl p-4 mb-4"><div class="flex items-center gap-2 mb-3"><span class="text-xl">⚽</span><span class="font-bold">GG/NG</span><span class="text-xs text-gray-500">GG: ${a.h.gg}%+${a.a.gg}%</span></div>
+                    <div class="grid grid-cols-2 gap-3">
+                    <button onclick="save('${info}','GG','GG',${a.gg.cf},'${a.gg.q}')" class="pick-btn glass-light rounded-xl p-3 text-center ${a.gg.p > 52 ? 'recommended' : ''}"><p class="font-black text-xl">GG</p><p class="text-gray-400 text-xs">${a.gg.p.toFixed(0)}%</p><span class="inline-block mt-1 px-2 py-1 rounded text-xs font-bold ${cc(a.gg.cf)}">${a.gg.cf.toFixed(0)}%</span></button>
+                    <button onclick="save('${info}','GG','NG',${100-a.gg.cf},'${a.gg.q}')" class="pick-btn glass-light rounded-xl p-3 text-center ${a.gg.p <= 52 ? 'recommended' : ''}"><p class="font-black text-xl">NG</p><p class="text-gray-400 text-xs">${(100-a.gg.p).toFixed(0)}%</p><span class="inline-block mt-1 px-2 py-1 rounded text-xs font-bold ${cc(100-a.gg.cf)}">${(100-a.gg.cf).toFixed(0)}%</span></button></div></div>
+                    
+                    <div class="glass rounded-2xl p-4 mb-4"><div class="flex items-center gap-2 mb-3"><span class="text-xl">🚩</span><span class="font-bold">Corner</span><span class="text-xs text-gray-500">Exp: ${a.corners.t.toFixed(1)}</span></div>
+                    <p class="text-xs font-bold text-gray-400 mb-2">Totale</p><div class="grid grid-cols-2 gap-2 mb-3">${Object.entries(a.corners.preds).map(([l, p]) => `<button onclick="save('${info}','Corner','${p.pick} ${l}',${p.cf},'${p.q}')" class="pick-btn glass-light rounded-xl p-2 flex items-center justify-between ${p.cf >= 60 ? 'recommended' : ''}"><span class="font-bold text-sm">${p.pick} ${l}</span><span class="px-2 py-1 rounded text-xs font-bold ${cc(p.cf)}">${p.cf.toFixed(0)}%</span></button>`).join('')}</div>
+                    <p class="text-xs font-bold text-gray-400 mb-2">🏠 ${hn} (${a.corners.h.toFixed(1)})</p><div class="grid grid-cols-3 gap-2 mb-3">${Object.entries(a.corners.hPreds).map(([l, p]) => `<button onclick="save('${info}','Corner Casa','${p.pick} ${l}',${p.cf},'${p.q}')" class="pick-btn glass-light rounded-lg p-2 text-center"><p class="font-bold text-xs">${p.pick} ${l}</p><span class="text-xs ${p.cf >= 55 ? 'text-emerald-400' : 'text-yellow-400'}">${p.cf.toFixed(0)}%</span></button>`).join('')}</div>
+                    <p class="text-xs font-bold text-gray-400 mb-2">🚌 ${an} (${a.corners.a.toFixed(1)})</p><div class="grid grid-cols-3 gap-2">${Object.entries(a.corners.aPreds).map(([l, p]) => `<button onclick="save('${info}','Corner Ospite','${p.pick} ${l}',${p.cf},'${p.q}')" class="pick-btn glass-light rounded-lg p-2 text-center"><p class="font-bold text-xs">${p.pick} ${l}</p><span class="text-xs ${p.cf >= 55 ? 'text-emerald-400' : 'text-yellow-400'}">${p.cf.toFixed(0)}%</span></button>`).join('')}</div></div>
+                    
+                    <div class="glass rounded-2xl p-4 mb-4"><div class="flex items-center gap-2 mb-3"><span class="text-xl">🟨</span><span class="font-bold">Cards</span><span class="text-xs text-gray-500">Exp: ${a.cards.t.toFixed(1)}</span></div>
+                    <p class="text-xs font-bold text-gray-400 mb-2">Totale</p><div class="grid grid-cols-2 gap-2 mb-3">${Object.entries(a.cards.preds).map(([l, p]) => `<button onclick="save('${info}','Cards','${p.pick} ${l}',${p.cf},'${p.q}')" class="pick-btn glass-light rounded-xl p-2 flex items-center justify-between ${p.cf >= 58 ? 'recommended' : ''}"><span class="font-bold text-sm">${p.pick} ${l}</span><span class="px-2 py-1 rounded text-xs font-bold ${cc(p.cf)}">${p.cf.toFixed(0)}%</span></button>`).join('')}</div>
+                    <p class="text-xs font-bold text-gray-400 mb-2">🏠 ${hn} (${a.cards.h.toFixed(1)})</p><div class="grid grid-cols-2 gap-2 mb-3">${Object.entries(a.cards.hPreds).map(([l, p]) => `<button onclick="save('${info}','Cards Casa','${p.pick} ${l}',${p.cf},'${p.q}')" class="pick-btn glass-light rounded-lg p-2 text-center"><p class="font-bold text-xs">${p.pick} ${l}</p><span class="text-xs ${p.cf >= 52 ? 'text-emerald-400' : 'text-yellow-400'}">${p.cf.toFixed(0)}%</span></button>`).join('')}</div>
+                    <p class="text-xs font-bold text-gray-400 mb-2">🚌 ${an} (${a.cards.a.toFixed(1)})</p><div class="grid grid-cols-2 gap-2">${Object.entries(a.cards.aPreds).map(([l, p]) => `<button onclick="save('${info}','Cards Ospite','${p.pick} ${l}',${p.cf},'${p.q}')" class="pick-btn glass-light rounded-lg p-2 text-center"><p class="font-bold text-xs">${p.pick} ${l}</p><span class="text-xs ${p.cf >= 52 ? 'text-emerald-400' : 'text-yellow-400'}">${p.cf.toFixed(0)}%</span></button>`).join('')}</div></div>`;
+            }
+
+            if (state.view === 'history') {
+                content = `<h2 class="font-bold text-lg mb-4">📝 Storico (${data.predictions.length})</h2>
+                    ${data.predictions.length === 0 ? '<div class="glass rounded-2xl p-12 text-center"><p class="text-gray-400">Nessun pronostico</p></div>' : `<div class="space-y-3 max-h-[65vh] overflow-y-auto">
+                    ${data.predictions.map(p => { const ic = p.type?.includes('Corner') ? '🚩' : p.type?.includes('Card') ? '🟨' : '⚽', bg = p.result === 'won' ? 'result-won' : p.result === 'lost' ? 'result-lost' : '';
+                    return `<div class="glass rounded-2xl p-4 border ${bg} fade-in"><div class="flex items-start justify-between"><div class="flex-1"><div class="flex items-center gap-2 mb-1"><span>${ic}</span><span class="font-bold text-sm">${p.info}</span>${p.q ? `<span class="quality-badge quality-${p.q}">${p.q}</span>` : ''}</div>
+                    <p class="text-emerald-400 font-semibold text-sm">${p.type}: ${p.pick}</p><div class="flex items-center gap-2 mt-1"><span class="px-2 py-0.5 rounded text-xs font-bold ${cc(p.cf)}">${p.cf}%</span><span class="text-xs text-gray-500">${new Date(p.date).toLocaleDateString('it-IT')}</span></div></div>
+                    <div class="ml-3">${p.result === null ? `<div class="flex gap-2"><button onclick="setResult(${p.id},'won')" class="px-3 py-2 rounded-lg bg-emerald-500/20 text-emerald-400 font-bold">✓</button><button onclick="setResult(${p.id},'lost')" class="px-3 py-2 rounded-lg bg-red-500/20 text-red-400 font-bold">✗</button></div>` : `<span class="text-2xl">${p.result === 'won' ? '✅' : '❌'}</span>`}</div></div></div>`; }).join('')}</div>`}`;
+            }
+
+            if (state.view === 'settings') {
+                content = `<div class="glass rounded-2xl p-6 mb-6 text-center"><div class="w-20 h-20 gradient-primary rounded-full flex items-center justify-center mx-auto mb-4">⚙️</div><h2 class="font-bold text-xl">Impostazioni</h2></div>
+                    <button onclick="data.apiKey='';saveData(data);state.view='setup';render()" class="w-full glass-light rounded-xl p-4 text-left mb-3 flex items-center justify-between"><span>🔑 Cambia API Key</span><span class="text-gray-500">→</span></button>
+                    <button onclick="if(confirm('Cancellare tutto lo storico?')){data.predictions=[];data.stats={total:0,won:0,lost:0};saveData(data);render()}" class="w-full py-4 rounded-xl border border-red-500/50 text-red-400 font-bold">🗑️ Cancella Storico</button>`;
+            }
+
+            app.innerHTML = `<div class="max-w-lg mx-auto min-h-screen flex flex-col pb-20">
+                <header class="glass sticky top-0 z-50 px-4 py-3 border-b border-white/10"><div class="flex items-center justify-between">
+                <div class="flex items-center gap-3"><div class="w-10 h-10 gradient-primary rounded-xl flex items-center justify-center">⚽</div><div><h1 class="font-black">BOMBA BET</h1><p class="text-xs text-gray-500">PRO</p></div></div>
+                <span class="text-xs text-emerald-400 font-bold px-2 py-1 rounded-full bg-emerald-500/20">${hr}%</span></div></header>
+                <main class="flex-1 p-4">${content}</main>
+                <nav class="fixed bottom-0 left-0 right-0 glass border-t border-white/10 z-50"><div class="max-w-lg mx-auto flex">
+                <button onclick="state.view='main';render()" class="nav-item flex-1 py-4 flex flex-col items-center gap-1 ${['main','matches','analysis'].includes(state.view) ? 'active' : 'text-gray-500'}"><span class="text-xl">📊</span><span class="text-xs">Analisi</span></button>
+                <button onclick="state.view='history';render()" class="nav-item flex-1 py-4 flex flex-col items-center gap-1 ${state.view === 'history' ? 'active' : 'text-gray-500'}"><span class="text-xl">📝</span><span class="text-xs">Storico</span></button>
+                <button onclick="state.view='settings';render()" class="nav-item flex-1 py-4 flex flex-col items-center gap-1 ${state.view === 'settings' ? 'active' : 'text-gray-500'}"><span class="text-xl">⚙️</span><span class="text-xs">Settings</span></button>
+                </div></nav></div>`;
+        }
+
+        render();
+    </script>
+</body>
+</html>
